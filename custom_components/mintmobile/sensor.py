@@ -1,0 +1,110 @@
+"""Sensor platform for Mint Mobile."""
+from homeassistant.helpers.entity import Entity
+from .const import DEFAULT_NAME, DOMAIN, ICON, SENSOR, DEFAULT_SCAN_INTERVAL
+from homeassistant.const import CONF_USERNAME, CONF_PASSWORD
+from .api import MintMobile
+import logging
+from datetime import timedelta
+import datetime
+import uuid
+from homeassistant.util import Throttle
+
+_LOGGER = logging.getLogger(__name__)
+
+async def async_setup_entry(hass, entry,async_add_entities):
+    """Setup sensor platform."""
+    config = {
+            CONF_USERNAME: entry.data[CONF_USERNAME],
+            CONF_PASSWORD: entry.data[CONF_PASSWORD]
+        }
+
+    sensors = []
+    mm = MintMobile(config.get(CONF_USERNAME),config.get(CONF_PASSWORD))
+    lines = await hass.async_add_executor_job(mm.lines)
+    for line in lines:
+        sensors.append(MintMobileSensor(hass,config,mm,line))
+
+    async_add_entities(sensors, True)
+
+
+class MintMobileSensor(Entity):
+
+    def __init__(self,hass, config, mm, msin):
+        """ Initialize the sensor """
+        self._name = None
+        self._icon = "mdi:cellphone"
+        self._unit_of_measurement = "GB"
+        self._state = None
+        self._data = None
+        self.msisdn = msin
+        self.line_name = None
+        self.mm = mm
+        self.config = config
+        self.last_updated = None
+        self._scan_interval = timedelta(minutes=DEFAULT_SCAN_INTERVAL)
+        self.hass = hass
+
+        _LOGGER.debug("Config scan interval: %s", self._scan_interval)
+
+        self.async_update = Throttle(self._scan_interval)(self.async_update)
+
+    @property
+    def unique_id(self):
+        """
+        Return a unique, Home Assistant friendly identifier for this entity.
+        """
+        return f"{DEFAULT_NAME}_{self.msisdn}"
+
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return f"{self.line_name} Mobile Data Usage Remaining"
+
+    @property
+    def state(self):
+        """Return the state of the sensor."""
+        return self._state
+
+    @property
+    def unit_of_measurement(self):
+        """Return the unit of measurement of this entity, if any."""
+        return self._unit_of_measurement
+
+    @property
+    def icon(self):
+        """Return the icon of the sensor."""
+        return self._icon
+
+    @property
+    def device_state_attributes(self):
+        """Return device specific state attributes."""
+        attr = {}
+        attr["phone_number"] = self.data['phone_number']
+        attr["line_name"] = self.data["line_name"]
+        attr["last_updated"] = self.last_updated
+
+        return attr
+
+
+
+    async def async_update(self):
+        """Fetch new state data for the sensor.
+        This is the only method that should fetch new data for Home Assistant.
+        """
+
+        mm = MintMobile(self.config.get(CONF_USERNAME),self.config.get(CONF_PASSWORD))
+        data = await self.hass.async_add_executor_job(mm.get_all_data_remaining)
+        self.data=data.get(self.msisdn)
+        # Using a dict to send the data back
+        self._state = self.data['remaining4G']
+        self.line_name = self.data['line_name']
+        self.last_updated = self.update_time()
+
+
+
+    def update_time(self):
+        """gets update time"""
+        updated = datetime.datetime.now().strftime("%b-%d-%Y %I:%M %p")
+
+        return updated

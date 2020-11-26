@@ -1,0 +1,9 @@
+{
+  "domain": "mintmobile",
+  "name": "Mint Mobile",
+  "documentation": "https://github.com/ryanmac8/HA-Mint-Mobile",
+  "dependencies": [],
+  "codeowners": [],
+  "requirements": ["requests"],
+  "config_flow": true
+}

@@ -1,0 +1,17 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mint Mobile Credentials",
+        "description": "Please enter the login credentials for Mint Mobile.",
+        "data": {
+          "username": "Phone Number",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_credentials": "Invalid credentials"
+    }
+  }
+}
