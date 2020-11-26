@@ -2,8 +2,6 @@
 
 This integration creates a sensor for each line and displays the remaining data usage for the month. If you have a Mint Mobile family, it will also pull in the data usage for each line. The sensor name is includes the name of each line so you can easily identity the line. In addition, each sensor contains the phone number of the line.
 
-[![GitHub Release][releases-shield]][releases]
-[![License][license-shield]](LICENSE.md)
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 
 ![GitHub contributors](https://img.shields.io/github/contributors/ryanmac8/HA-Mint-Mobile)
