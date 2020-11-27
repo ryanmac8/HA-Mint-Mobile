@@ -59,7 +59,7 @@ class MintMobileSensor(Entity):
     @property
     def name(self):
         """Return the name of the sensor."""
-        return f"Mint Mobile {self.line_name} Data Remaining"
+        return f"{self.line_name} Mobile Data Usage Remaining"
 
     @property
     def state(self):
@@ -83,6 +83,9 @@ class MintMobileSensor(Entity):
         attr["phone_number"] = self.data['phone_number']
         attr["line_name"] = self.data["line_name"]
         attr["last_updated"] = self.last_updated
+        attr["days_remaining_in_month"] = self.data["endOfCycle"]
+        attr["days_remaining_in_plan"] = self.data["exp"]
+        attr["current_plan_term"] = f"{self.data['months']} Months"
 
         return attr
 

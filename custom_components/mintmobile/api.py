@@ -1,4 +1,5 @@
 import requests
+import datetime
 
 class BearerAuth(requests.auth.AuthBase):
     def __init__(self, token):
@@ -24,17 +25,20 @@ class MintMobile:
             self.id=response['id']
             self.token=response['token']
             self.info[self.id]={"phone_number":self.phone_number}
-            self.master_line_name()
+            self.master_account_details()
             return True
         else:
             return False
 
 
 
-    def master_line_name(self):
+    def master_account_details(self):
         r=requests.get('https://w3b-api.ultramobile.com/v1/mint/account/'+str(self.id)+'?', auth=BearerAuth(str(self.token)))
         response=r.json()
         self.info[self.id]['line_name']=response['firstName']
+        self.info[self.id]['endOfCycle']=self.epoch_days_remaining(response['plan']['endOfCycle'])
+        self.info[self.id]['months']=response['plan']['months']
+        self.info[self.id]['exp']=self.epoch_days_remaining(response['plan']['exp'])
 
 
     def data_remaining(self):
@@ -50,12 +54,24 @@ class MintMobile:
         convert_gb=round(convert_gb, 2)
         return convert_gb
 
+    def epoch_days_remaining(self,epoch):
+        dt1 = datetime.datetime.fromtimestamp(epoch)
+        dt2 = datetime.datetime.now()
+        delta = dt1 - dt2
+        return delta.days
+
     def get_family_members(self):
         r=requests.get('https://w3b-api.ultramobile.com/v1/mint/account/'+str(self.id)+'/multi-line?', auth=BearerAuth(str(self.token)))
         response=r.json()
         for activeMembers in response['activeMembers']:
             self.family_members.append(activeMembers['id'])
-            self.info[activeMembers['id']]={"phone_number":activeMembers['msisdn'],"line_name":activeMembers['nickName']}
+            self.info[activeMembers['id']]={}
+            #self.info[activeMembers['id']]={"phone_number":activeMembers['msisdn'],"line_name":activeMembers['nickName']}
+            self.info[activeMembers['id']]["phone_number"]=activeMembers['msisdn']
+            self.info[activeMembers['id']]["line_name"]=activeMembers['nickName']
+            self.info[activeMembers['id']]["endOfCycle"]=self.epoch_days_remaining(activeMembers['currentPlan']["rechargeDate"])
+            self.info[activeMembers['id']]["months"]=activeMembers['currentPlan']["duration"]
+            self.info[activeMembers['id']]["exp"]=self.epoch_days_remaining(activeMembers['nextPlan']["renewalDate"])
         self.family_data_remaining()
 
 
