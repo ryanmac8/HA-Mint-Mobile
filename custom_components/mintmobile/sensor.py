@@ -59,7 +59,7 @@ class MintMobileSensor(Entity):
     @property
     def name(self):
         """Return the name of the sensor."""
-        return f"{self.line_name} Mobile Data Usage Remaining"
+        return f"Mint Mobile {self.line_name} Data Remaining"
 
     @property
     def state(self):

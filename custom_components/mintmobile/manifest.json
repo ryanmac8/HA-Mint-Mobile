@@ -4,6 +4,6 @@
   "documentation": "https://github.com/ryanmac8/HA-Mint-Mobile",
   "dependencies": [],
   "codeowners": [],
-  "requirements": ["requests"],
+  "requirements": ["requests==2.22.0"],
   "config_flow": true
 }
