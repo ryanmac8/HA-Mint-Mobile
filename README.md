@@ -21,7 +21,7 @@ This integration creates a sensor for each line and displays the remaining data 
 
 ---
 
-Enjoying my integration? Help me out and buy me a :coffee:!
+Enjoying my integration? Help me out and buy me a :coffee: for $3!
 
 [![coffee](https://www.buymeacoffee.com/assets/img/custom_images/black_img.png)](https://www.buymeacoffee.com/Ryanmac8)
 
