@@ -13,5 +13,18 @@
     "error": {
       "invalid_credentials": "Invalid credentials"
     }
+  },
+  "options": {
+    "step": {
+      "user": {
+        "data": {
+          "username": "Phone Number",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_credentials": "Invalid credentials"
+    }
   }
 }
