@@ -7,6 +7,7 @@ import logging
 from datetime import timedelta
 import datetime
 import uuid
+import numbers
 from homeassistant.util import Throttle
 
 _LOGGER = logging.getLogger(__name__)
@@ -97,13 +98,22 @@ class MintMobileSensor(Entity):
         """
 
         mm = MintMobile(self.config.get(CONF_USERNAME),self.config.get(CONF_PASSWORD))
-        data = await self.hass.async_add_executor_job(mm.get_all_data_remaining)
-        self.data=data.get(self.msisdn)
-        # Using a dict to send the data back
-        self._state = self.data['remaining4G']
-        self.line_name = self.data['line_name']
-        self.last_updated = self.update_time()
 
+        ## Login and make sure credentials are correct.
+        login = await self.hass.async_add_executor_job(mm.login)
+        if login:
+            # If credentials are valid, pull additional information from APIs
+            data = await self.hass.async_add_executor_job(mm.get_all_data_remaining)
+            self.data=data.get(self.msisdn)
+            # Using a dict to send the data back
+            if isinstance(self.data['remaining4G'], numbers.Real):
+                self._state = self.data['remaining4G']
+                self.line_name = self.data['line_name']
+                self.last_updated = self.update_time()
+            else:
+                _LOGGER.error("Unable to update line data useage")
+        else:
+            _LOGGER.error("Invalid Credentials")
 
 
     def update_time(self):
