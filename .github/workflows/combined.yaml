@@ -24,7 +24,9 @@ jobs:
         with:
           CATEGORY: integration
           ignore: "brands"
+      - uses: "home-assistant/actions/hassfest@master"
       - uses: KTibow/ha-blueprint@stable
         name: CI
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HASSFEST: DISABLED
