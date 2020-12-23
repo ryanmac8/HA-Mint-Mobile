@@ -94,6 +94,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         ] = str
         data_schema[vol.Required("password", default="")] = str
 
+
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(data_schema),
@@ -146,6 +147,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         data_schema[vol.Required("username", default=self.config_entry.data.get(CONF_USERNAME))] = str
         data_schema[vol.Required("password", default="")] = str
 
+
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(data_schema),
@@ -165,7 +167,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         else:
             self._errors["base"] = "invalid_credentials"
             return await self.async_step_user()
-
 
     async def _test_credentials(self, username, password):
         """Return true if credentials is valid."""

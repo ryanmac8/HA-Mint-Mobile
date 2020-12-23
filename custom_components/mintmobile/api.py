@@ -2,6 +2,9 @@ import datetime
 import requests
 
 
+import requests
+
+
 class BearerAuth(requests.auth.AuthBase):
     def __init__(self, token):
         self.token = token
@@ -81,6 +84,7 @@ class MintMobile:
             auth=BearerAuth(str(self.token)),
         )
         response = r.json()
+
         # Uncomment line below to test integration that doesn't have family lines.
         #response={'hasAvailableLine': True, 'hasActionRequired': False, 'activeMembers': [], 'requests': []}
         if response["activeMembers"]:
