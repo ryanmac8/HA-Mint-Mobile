@@ -1,6 +1,4 @@
 import datetime
-import requests
-
 
 import requests
 
@@ -86,7 +84,7 @@ class MintMobile:
         response = r.json()
 
         # Uncomment line below to test integration that doesn't have family lines.
-        #response={'hasAvailableLine': True, 'hasActionRequired': False, 'activeMembers': [], 'requests': []}
+        # response={'hasAvailableLine': True, 'hasActionRequired': False, 'activeMembers': [], 'requests': []}
         if response["activeMembers"]:
             for activeMembers in response["activeMembers"]:
                 self.family_members.append(activeMembers["id"])
@@ -94,7 +92,9 @@ class MintMobile:
                 # self.info[activeMembers['id']]={"phone_number":activeMembers['msisdn'],"line_name":activeMembers['nickName']}
                 self.info[activeMembers["id"]]["phone_number"] = activeMembers["msisdn"]
                 self.info[activeMembers["id"]]["line_name"] = activeMembers["nickName"]
-                self.info[activeMembers["id"]]["endOfCycle"] = self.epoch_days_remaining(
+                self.info[activeMembers["id"]][
+                    "endOfCycle"
+                ] = self.epoch_days_remaining(
                     activeMembers["currentPlan"]["rechargeDate"]
                 )
                 self.info[activeMembers["id"]]["months"] = activeMembers["currentPlan"][
