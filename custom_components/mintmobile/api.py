@@ -82,22 +82,28 @@ class MintMobile:
             auth=BearerAuth(str(self.token)),
         )
         response = r.json()
-        for activeMembers in response["activeMembers"]:
-            self.family_members.append(activeMembers["id"])
-            self.info[activeMembers["id"]] = {}
-            # self.info[activeMembers['id']]={"phone_number":activeMembers['msisdn'],"line_name":activeMembers['nickName']}
-            self.info[activeMembers["id"]]["phone_number"] = activeMembers["msisdn"]
-            self.info[activeMembers["id"]]["line_name"] = activeMembers["nickName"]
-            self.info[activeMembers["id"]]["endOfCycle"] = self.epoch_days_remaining(
-                activeMembers["currentPlan"]["rechargeDate"]
-            )
-            self.info[activeMembers["id"]]["months"] = activeMembers["currentPlan"][
-                "duration"
-            ]
-            self.info[activeMembers["id"]]["exp"] = self.epoch_days_remaining(
-                activeMembers["nextPlan"]["renewalDate"]
-            )
-        self.family_data_remaining()
+
+        # Uncomment line below to test integration that doesn't have family lines.
+        # response={'hasAvailableLine': True, 'hasActionRequired': False, 'activeMembers': [], 'requests': []}
+        if response["activeMembers"]:
+            for activeMembers in response["activeMembers"]:
+                self.family_members.append(activeMembers["id"])
+                self.info[activeMembers["id"]] = {}
+                # self.info[activeMembers['id']]={"phone_number":activeMembers['msisdn'],"line_name":activeMembers['nickName']}
+                self.info[activeMembers["id"]]["phone_number"] = activeMembers["msisdn"]
+                self.info[activeMembers["id"]]["line_name"] = activeMembers["nickName"]
+                self.info[activeMembers["id"]][
+                    "endOfCycle"
+                ] = self.epoch_days_remaining(
+                    activeMembers["currentPlan"]["rechargeDate"]
+                )
+                self.info[activeMembers["id"]]["months"] = activeMembers["currentPlan"][
+                    "duration"
+                ]
+                self.info[activeMembers["id"]]["exp"] = self.epoch_days_remaining(
+                    activeMembers["nextPlan"]["renewalDate"]
+                )
+            self.family_data_remaining()
 
     def family_data_remaining(self):
         for member in self.family_members:

@@ -118,3 +118,57 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Return true if credentials is valid."""
         mm = MintMobile(username, password)
         return await self.hass.async_add_executor_job(mm.login)
+
+    # Options Flow
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        return OptionsFlowHandler(config_entry)
+
+
+class OptionsFlowHandler(config_entries.OptionsFlow):
+    def __init__(self, config_entry):
+        """Initialize HACS options flow."""
+        self.config_entry = config_entry
+        self.options = dict(config_entry.options)
+        self._errors = {}
+        self._data = {}
+
+    async def async_step_init(self, user_input=None):
+        return await self.async_step_user()
+
+    async def async_step_user(self, user_input=None):
+        if user_input is not None:
+            self._data = user_input
+            return await self._update_options()
+
+        data_schema = OrderedDict()
+        data_schema[
+            vol.Required("username", default=self.config_entry.data.get(CONF_USERNAME))
+        ] = str
+        data_schema[vol.Required("password", default="")] = str
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema(data_schema),
+            errors=self._errors,
+        )
+
+    async def _update_options(self):
+        """Update config entry options."""
+        valid = await self._test_credentials(
+            self._data[CONF_USERNAME],
+            self._data[CONF_PASSWORD],
+        )
+        if valid:
+            return self.async_create_entry(
+                title=self.config_entry.data.get(CONF_USERNAME), data=self._data
+            )
+        else:
+            self._errors["base"] = "invalid_credentials"
+            return await self.async_step_user()
+
+    async def _test_credentials(self, username, password):
+        """Return true if credentials is valid."""
+        mm = MintMobile(username, password)
+        return await self.hass.async_add_executor_job(mm.login)

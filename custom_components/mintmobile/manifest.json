@@ -3,6 +3,7 @@
   "name": "Mint Mobile",
   "documentation": "https://github.com/ryanmac8/HA-Mint-Mobile",
   "codeowners": ["@ryanmac8"],
-  "requirements": ["requests==2.22.0"],
-  "config_flow": true
+  "requirements": ["requests>=2.22.0"],
+  "config_flow": true,
+  "issue_tracker": "https://github.com/ryanmac8/HA-Mint-Mobile/issues"
 }
