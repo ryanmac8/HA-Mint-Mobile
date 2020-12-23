@@ -3,8 +3,8 @@ Custom integration to integrate Mint Mobile with Home Assistant.
 
 """
 import asyncio
-from datetime import timedelta
 import logging
+from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Config, HomeAssistant
@@ -13,16 +13,14 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import MintMobile
-
 from .const import (
     CONF_PASSWORD,
     CONF_USERNAME,
     DOMAIN,
+    ISSUE_URL,
     PLATFORMS,
     STARTUP_MESSAGE,
-    DOMAIN,
     VERSION,
-     ISSUE_URL
 )
 
 SCAN_INTERVAL = timedelta(minutes=5)
