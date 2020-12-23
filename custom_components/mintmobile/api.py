@@ -1,6 +1,4 @@
 import datetime
-import requests
-
 
 import requests
 
@@ -85,6 +83,7 @@ class MintMobile:
         )
         response = r.json()
 
+
         # Mint Mobile returns a 200 when multiple lines are present and a 404 when single line account.
         if r.status_code == 200 :
             for activeMembers in response["activeMembers"]:
@@ -93,7 +92,9 @@ class MintMobile:
                 # self.info[activeMembers['id']]={"phone_number":activeMembers['msisdn'],"line_name":activeMembers['nickName']}
                 self.info[activeMembers["id"]]["phone_number"] = activeMembers["msisdn"]
                 self.info[activeMembers["id"]]["line_name"] = activeMembers["nickName"]
-                self.info[activeMembers["id"]]["endOfCycle"] = self.epoch_days_remaining(
+                self.info[activeMembers["id"]][
+                    "endOfCycle"
+                ] = self.epoch_days_remaining(
                     activeMembers["currentPlan"]["rechargeDate"]
                 )
                 self.info[activeMembers["id"]]["months"] = activeMembers["currentPlan"][

@@ -94,7 +94,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         ] = str
         data_schema[vol.Required("password", default="")] = str
 
-
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(data_schema),
@@ -126,8 +125,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     def async_get_options_flow(config_entry):
         return OptionsFlowHandler(config_entry)
 
-class OptionsFlowHandler(config_entries.OptionsFlow):
 
+class OptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, config_entry):
         """Initialize HACS options flow."""
         self.config_entry = config_entry
@@ -140,13 +139,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def async_step_user(self, user_input=None):
         if user_input is not None:
-            self._data=user_input
+            self._data = user_input
             return await self._update_options()
 
         data_schema = OrderedDict()
-        data_schema[vol.Required("username", default=self.config_entry.data.get(CONF_USERNAME))] = str
+        data_schema[
+            vol.Required("username", default=self.config_entry.data.get(CONF_USERNAME))
+        ] = str
         data_schema[vol.Required("password", default="")] = str
-
 
         return self.async_show_form(
             step_id="user",
