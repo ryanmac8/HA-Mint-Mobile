@@ -83,9 +83,9 @@ class MintMobile:
         )
         response = r.json()
 
-        # Uncomment line below to test integration that doesn't have family lines.
-        # response={'hasAvailableLine': True, 'hasActionRequired': False, 'activeMembers': [], 'requests': []}
-        if response["activeMembers"]:
+
+        # Mint Mobile returns a 200 when multiple lines are present and a 404 when single line account.
+        if r.status_code == 200 :
             for activeMembers in response["activeMembers"]:
                 self.family_members.append(activeMembers["id"])
                 self.info[activeMembers["id"]] = {}
