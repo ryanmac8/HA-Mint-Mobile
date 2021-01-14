@@ -15,7 +15,7 @@ This integration creates a sensor for each line and displays the remaining data 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 
 ![GitHub contributors](https://img.shields.io/github/contributors/ryanmac8/HA-Mint-Mobile)
-![Maintenance](https://img.shields.io/maintenance/yes/2020)
+![Maintenance](https://img.shields.io/maintenance/yes/2021)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ryanmac8/HA-Mint-Mobile)
 ![GitHub last commit](https://img.shields.io/github/last-commit/ryanmac8/HA-Mint-Mobile)
 
