@@ -1,6 +1,6 @@
 # Mint Mobile - Home Assistant Integration
 
-This integration creates a sensor for each line and displays the remaining data usage for the month. If you have a Mint Mobile family, it will also pull in the data usage for each line. The sensor name is includes additional attributes about the line. If there's any interest in needing the attributes broken out into additional sensors, open a issue and let me know.
+This integration creates a sensor for each line and displays the remaining data usage for the month. If you have a Mint Mobile family, it will also pull in the data usage for each line. The sensor includes additional attributes about the line. If there's any interest in needing the attributes broken out into additional sensors, open a issue and let me know.
 
 ### Attributes Included:
 
