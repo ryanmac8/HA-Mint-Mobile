@@ -1,6 +1,8 @@
 # Mint Mobile - Home Assistant Integration
 
+
 This integration creates a sensor for each line and displays the remaining data usage for the month. If you have a Mint Mobile family, it will also pull in the data usage for each line. The sensor name is includes additional attributes about the line.
+
 
 ### Attributes Included:
 
@@ -23,7 +25,7 @@ If you want to have the following attributes as additional sensors, during the s
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 
 ![GitHub contributors](https://img.shields.io/github/contributors/ryanmac8/HA-Mint-Mobile)
-![Maintenance](https://img.shields.io/maintenance/yes/2020)
+![Maintenance](https://img.shields.io/maintenance/yes/2021)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ryanmac8/HA-Mint-Mobile)
 ![GitHub last commit](https://img.shields.io/github/last-commit/ryanmac8/HA-Mint-Mobile)
 
