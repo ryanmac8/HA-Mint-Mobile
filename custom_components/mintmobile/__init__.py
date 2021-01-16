@@ -14,6 +14,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import MintMobile
 from .const import (
+    CONF_ATTRIBUTESENSORS,
     CONF_PASSWORD,
     CONF_USERNAME,
     DOMAIN,
