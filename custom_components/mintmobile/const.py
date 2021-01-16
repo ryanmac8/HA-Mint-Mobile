@@ -21,6 +21,7 @@ PLATFORMS = [SENSOR]
 CONF_ENABLED = "enabled"
 CONF_USERNAME = "username"
 CONF_PASSWORD = "password"
+CONF_ATTRIBUTESENSORS = "attributesensors"
 
 # Defaults
 DEFAULT_NAME = "mint_mobile"

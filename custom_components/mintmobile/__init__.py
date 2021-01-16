@@ -16,6 +16,7 @@ from .api import MintMobile
 from .const import (
     CONF_PASSWORD,
     CONF_USERNAME,
+    CONF_ATTRIBUTESENSORS,
     DOMAIN,
     ISSUE_URL,
     PLATFORMS,

@@ -6,7 +6,8 @@
         "description": "Please enter the login credentials for Mint Mobile.",
         "data": {
           "username": "Phone Number",
-          "password": "Password"
+          "password": "Password",
+          "attributesensors": "Display Attributes As Additional Sensors"
         }
       }
     },
@@ -19,7 +20,8 @@
       "user": {
         "data": {
           "username": "Phone Number",
-          "password": "Password"
+          "password": "Password",
+          "attributesensors": "Display Attributes As Additional Sensors"
         }
       }
     },
