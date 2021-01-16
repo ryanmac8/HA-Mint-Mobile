@@ -8,7 +8,13 @@ from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .api import MintMobile
-from .const import CONF_PASSWORD, CONF_USERNAME, CONF_ATTRIBUTESENSORS, DOMAIN, PLATFORMS
+from .const import (
+    CONF_ATTRIBUTESENSORS,
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    DOMAIN,
+    PLATFORMS,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,7 +61,6 @@ class MintMobileFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema[vol.Required("password", default="")] = str
         data_schema[vol.Optional("attributesensors", default=False)] = bool
 
-
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(data_schema),
@@ -91,11 +96,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             return await self._update_options()
 
         if self.config_entry.data.get(CONF_ATTRIBUTESENSORS):
-            attributesensors=True
+            attributesensors = True
         else:
-            attributesensors=False
+            attributesensors = False
         data_schema = OrderedDict()
-        data_schema[vol.Required("username", default=self.config_entry.data.get(CONF_USERNAME))] = str
+        data_schema[
+            vol.Required("username", default=self.config_entry.data.get(CONF_USERNAME))
+        ] = str
         data_schema[vol.Required("password", default="")] = str
         data_schema[vol.Required("attributesensors", default=attributesensors)] = bool
 
@@ -148,9 +155,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             return await self._update_options()
 
         if self.config_entry.data.get(CONF_ATTRIBUTESENSORS):
-            attributesensors=True
+            attributesensors = True
         else:
-            attributesensors=False
+            attributesensors = False
 
         data_schema = OrderedDict()
         data_schema[
@@ -158,7 +165,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         ] = str
         data_schema[vol.Optional("password", default="")] = str
         data_schema[vol.Optional("attributesensors", default=attributesensors)] = bool
-
 
         return self.async_show_form(
             step_id="user",
@@ -168,8 +174,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def _update_options(self):
         """Update config entry options."""
-        if self._data[CONF_PASSWORD]=='':
-            self._data[CONF_PASSWORD]=self.config_entry.data.get(CONF_PASSWORD)
+        if self._data[CONF_PASSWORD] == "":
+            self._data[CONF_PASSWORD] = self.config_entry.data.get(CONF_PASSWORD)
         valid = await self._test_credentials(
             self._data[CONF_USERNAME],
             self._data[CONF_PASSWORD],

@@ -10,7 +10,14 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.util import Throttle
 
 from .api import MintMobile
-from .const import DEFAULT_NAME, DEFAULT_SCAN_INTERVAL, DOMAIN, ICON, SENSOR, CONF_ATTRIBUTESENSORS
+from .const import (
+    CONF_ATTRIBUTESENSORS,
+    DEFAULT_NAME,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    ICON,
+    SENSOR,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -125,6 +132,7 @@ class MintMobileSensor(Entity):
 
         return updated
 
+
 class CurrentPlanSensor(Entity):
     def __init__(self, hass, config, mm, msin):
         """ Initialize the sensor """
@@ -210,6 +218,7 @@ class CurrentPlanSensor(Entity):
 
         return updated
 
+
 class DaysRemainingInMonthSensor(Entity):
     def __init__(self, hass, config, mm, msin):
         """ Initialize the sensor """
@@ -294,6 +303,7 @@ class DaysRemainingInMonthSensor(Entity):
         updated = datetime.datetime.now().strftime("%b-%d-%Y %I:%M %p")
 
         return updated
+
 
 class DaysRemainingInPlanSensor(Entity):
     def __init__(self, hass, config, mm, msin):
