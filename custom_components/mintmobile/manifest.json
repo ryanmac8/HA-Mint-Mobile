@@ -6,5 +6,6 @@
   "requirements": ["requests>=2.22.0"],
   "config_flow": true,
   "issue_tracker": "https://github.com/ryanmac8/HA-Mint-Mobile/issues",
-  "version": "1.5.0"
+  "version": "1.5.0",
+  "iot_class": "cloud_polling"
 }
