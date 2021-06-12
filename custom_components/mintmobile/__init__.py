@@ -33,7 +33,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup(hass, config_entry):
-    """ Disallow configuration via YAML """
+    """Disallow configuration via YAML"""
 
     return True
 

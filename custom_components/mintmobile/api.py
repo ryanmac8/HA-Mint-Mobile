@@ -26,6 +26,9 @@ class MintMobile:
         r = requests.post(
             "https://w3b-api.ultramobile.com/v1/mint/login?",
             json={"msisdn": self.phone_number, "password": self.password},
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"
+            },
         )
         if r.status_code == 200:
             response = r.json()
@@ -41,6 +44,9 @@ class MintMobile:
         r = requests.get(
             "https://w3b-api.ultramobile.com/v1/mint/account/" + str(self.id) + "?",
             auth=BearerAuth(str(self.token)),
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"
+            },
         )
         response = r.json()
         self.info[self.id]["line_name"] = response["firstName"]
@@ -56,6 +62,9 @@ class MintMobile:
             + str(self.id)
             + "/data?",
             auth=BearerAuth(str(self.token)),
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"
+            },
         )
         response = r.json()
         response["remaining4G_GB"] = self.conv_MB_to_GB(response["remaining4G"])
@@ -80,6 +89,9 @@ class MintMobile:
             + str(self.id)
             + "/multi-line?",
             auth=BearerAuth(str(self.token)),
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"
+            },
         )
         response = r.json()
 
@@ -113,6 +125,9 @@ class MintMobile:
                 + member
                 + "/usage?",
                 auth=BearerAuth(str(self.token)),
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"
+                },
             )
         response = r.json()
         response["remaining4G_GB"] = self.conv_MB_to_GB(response["data"]["remaining4G"])
