@@ -62,7 +62,9 @@ class MintMobile:
         )
         response = r.json()
         response["remaining4G_GB"] = self.conv_MB_to_GB(response["remaining4G"])
+        response["used4G_GB"] = self.conv_MB_to_GB(response["usage4G"])
         self.info[self.id]["remaining4G"] = response["remaining4G_GB"]
+        self.info[self.id]["used4G"] = response["used4G_GB"]
         return self.info
 
     def conv_MB_to_GB(self, input_megabyte):
@@ -121,7 +123,9 @@ class MintMobile:
             )
         response = r.json()
         response["remaining4G_GB"] = self.conv_MB_to_GB(response["data"]["remaining4G"])
+        response["used4G_GB"] = self.conv_MB_to_GB(response["data"]["usage4G"])
         self.info[member]["remaining4G"] = response["remaining4G_GB"]
+        self.info[member]["used4G"] = response["used4G_GB"]
 
     def get_all_data_remaining(self):
         self.login()
