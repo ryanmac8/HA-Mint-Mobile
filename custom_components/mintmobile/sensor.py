@@ -46,7 +46,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
 class MintMobileSensor(Entity):
     def __init__(self, hass, config, mm, msin):
-        """ Initialize the sensor """
+        """Initialize the sensor"""
         self._name = None
         self._icon = "mdi:cellphone"
         self._unit_of_measurement = "GB"
@@ -133,9 +133,10 @@ class MintMobileSensor(Entity):
 
         return updated
 
+
 class DataUsed(Entity):
     def __init__(self, hass, config, mm, msin):
-        """ Initialize the sensor """
+        """Initialize the sensor"""
         self._name = None
         self._icon = "mdi:cellphone"
         self._unit_of_measurement = "GB"
@@ -222,9 +223,10 @@ class DataUsed(Entity):
 
         return updated
 
+
 class CurrentPlanSensor(Entity):
     def __init__(self, hass, config, mm, msin):
-        """ Initialize the sensor """
+        """Initialize the sensor"""
         self._name = None
         self._icon = "mdi:calendar-text"
         self._unit_of_measurement = "Months"
@@ -310,7 +312,7 @@ class CurrentPlanSensor(Entity):
 
 class DaysRemainingInMonthSensor(Entity):
     def __init__(self, hass, config, mm, msin):
-        """ Initialize the sensor """
+        """Initialize the sensor"""
         self._name = None
         self._icon = "mdi:counter"
         self._unit_of_measurement = "Days"
@@ -396,7 +398,7 @@ class DaysRemainingInMonthSensor(Entity):
 
 class DaysRemainingInPlanSensor(Entity):
     def __init__(self, hass, config, mm, msin):
-        """ Initialize the sensor """
+        """Initialize the sensor"""
         self._name = None
         self._icon = "mdi:counter"
         self._unit_of_measurement = "Days"
