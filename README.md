@@ -24,6 +24,8 @@ If you want to have the following attributes as additional sensors, during the s
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 
+[![Validate with hassfest](https://github.com/ryanmac8/HA-Mint-Mobile/actions/workflows/combined.yaml/badge.svg)](https://github.com/ryanmac8/HA-Mint-Mobile/actions/workflows/combined.yaml)
+
 ![GitHub contributors](https://img.shields.io/github/contributors/ryanmac8/HA-Mint-Mobile)
 ![Maintenance](https://img.shields.io/maintenance/yes/2021)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ryanmac8/HA-Mint-Mobile)
