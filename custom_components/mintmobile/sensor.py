@@ -92,7 +92,7 @@ class MintMobileSensor(Entity):
         return self._icon
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return device specific state attributes."""
         attr = {}
         attr["phone_number"] = self.data["phone_number"]
@@ -182,7 +182,7 @@ class DataUsed(Entity):
         return self._icon
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return device specific state attributes."""
         attr = {}
         attr["phone_number"] = self.data["phone_number"]
@@ -272,7 +272,7 @@ class CurrentPlanSensor(Entity):
         return self._icon
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return device specific state attributes."""
         attr = {}
         attr["phone_number"] = self.data["phone_number"]
@@ -358,7 +358,7 @@ class DaysRemainingInMonthSensor(Entity):
         return self._icon
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return device specific state attributes."""
         attr = {}
         attr["phone_number"] = self.data["phone_number"]
@@ -444,7 +444,7 @@ class DaysRemainingInPlanSensor(Entity):
         return self._icon
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return device specific state attributes."""
         attr = {}
         attr["phone_number"] = self.data["phone_number"]
