@@ -20,6 +20,7 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+SCAN_INTERVAL = datetime.timedelta(hours=12)
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
