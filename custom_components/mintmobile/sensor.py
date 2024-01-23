@@ -20,6 +20,7 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+SCAN_INTERVAL = datetime.timedelta(hours=12)
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -118,7 +119,7 @@ class MintMobileSensor(Entity):
             data = await self.hass.async_add_executor_job(mm.get_all_data_remaining)
             self.data = data.get(self.msisdn)
             # Using a dict to send the data back
-            if isinstance(self.data["remaining4G"], numbers.Real):
+            if "remaining4G" in self.data and isinstance(self.data["remaining4G"], numbers.Real):
                 self._state = self.data["remaining4G"]
                 self.line_name = self.data["line_name"]
                 self.last_updated = self.update_time()
@@ -208,7 +209,7 @@ class DataUsed(Entity):
             data = await self.hass.async_add_executor_job(mm.get_all_data_remaining)
             self.data = data.get(self.msisdn)
             # Using a dict to send the data back
-            if isinstance(self.data["used4G"], numbers.Real):
+            if "used4G" in self.data and isinstance(self.data["used4G"], numbers.Real):
                 self._state = self.data["used4G"]
                 self.line_name = self.data["line_name"]
                 self.last_updated = self.update_time()

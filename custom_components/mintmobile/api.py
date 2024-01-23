@@ -131,11 +131,11 @@ class MintMobile:
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"
                 },
             )
-        response = r.json()
-        response["remaining4G_GB"] = self.conv_MB_to_GB(response["data"]["remaining4G"])
-        response["used4G_GB"] = self.conv_MB_to_GB(response["data"]["usage4G"])
-        self.info[member]["remaining4G"] = response["remaining4G_GB"]
-        self.info[member]["used4G"] = response["used4G_GB"]
+            response = r.json()
+            response["remaining4G_GB"] = self.conv_MB_to_GB(response["data"]["remaining4G"])
+            response["used4G_GB"] = self.conv_MB_to_GB(response["data"]["usage4G"])
+            self.info[member]["remaining4G"] = response["remaining4G_GB"]
+            self.info[member]["used4G"] = response["used4G_GB"]
 
     def get_all_data_remaining(self):
         self.login()
