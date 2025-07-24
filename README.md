@@ -13,6 +13,12 @@ This integration creates a sensor for each line and displays the remaining data 
 - Line name
 - Last updated
 
+### Polling Interval
+
+During setup you can specify how often the integration checks Mint Mobile for
+new data. The value is in **hours** and defaults to **12**. Values less than 1
+hour are not allowed.
+
 ### Attributes As Additional Sensors
 
 If you want to have the following attributes as additional sensors, during the setup process or under the integration options menu check 'Display Attributes As Additional Sensors'.

@@ -10,6 +10,12 @@
           "attributesensors": "Display Attributes As Additional Sensors"
 
         }
+      },
+      "polling": {
+        "title": "Polling Interval",
+        "data": {
+          "polling_interval": "Polling Interval (hours)"
+        }
       }
     },
     "error": {
@@ -22,7 +28,8 @@
         "data": {
           "username": "Phone Number",
           "password": "Password",
-          "attributesensors": "Display Attributes As Additional Sensors"
+          "attributesensors": "Display Attributes As Additional Sensors",
+          "polling_interval": "Polling Interval (hours)"
         }
       }
     },

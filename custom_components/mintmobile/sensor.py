@@ -12,15 +12,17 @@ from homeassistant.util import Throttle
 from .api import MintMobile
 from .const import (
     CONF_ATTRIBUTESENSORS,
+    CONF_POLLING_INTERVAL,
     DEFAULT_NAME,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_POLLING_INTERVAL,
     DOMAIN,
     ICON,
     SENSOR,
 )
 
 _LOGGER = logging.getLogger(__name__)
-SCAN_INTERVAL = datetime.timedelta(hours=12)
+SCAN_INTERVAL = datetime.timedelta(hours=DEFAULT_POLLING_INTERVAL)
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -29,7 +31,13 @@ async def async_setup_entry(hass, entry, async_add_entities):
         CONF_USERNAME: entry.data[CONF_USERNAME],
         CONF_PASSWORD: entry.data[CONF_PASSWORD],
         CONF_ATTRIBUTESENSORS: entry.data[CONF_ATTRIBUTESENSORS],
+        CONF_POLLING_INTERVAL: entry.data.get(
+            CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL
+        ),
     }
+
+    global SCAN_INTERVAL
+    SCAN_INTERVAL = datetime.timedelta(hours=config[CONF_POLLING_INTERVAL])
 
     sensors = []
     mm = MintMobile(config.get(CONF_USERNAME), config.get(CONF_PASSWORD))
