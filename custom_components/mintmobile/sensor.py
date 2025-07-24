@@ -124,7 +124,7 @@ class MintMobileSensor(Entity):
                 self.line_name = self.data["line_name"]
                 self.last_updated = self.update_time()
             else:
-                _LOGGER.error("Unable to update line data useage")
+                _LOGGER.error("Unable to update line data usage")
         else:
             _LOGGER.error("Invalid Credentials")
 
@@ -214,7 +214,7 @@ class DataUsed(Entity):
                 self.line_name = self.data["line_name"]
                 self.last_updated = self.update_time()
             else:
-                _LOGGER.error("Unable to update line data useage")
+                _LOGGER.error("Unable to update line data usage")
         else:
             _LOGGER.error("Invalid Credentials")
 
