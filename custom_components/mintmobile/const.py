@@ -22,10 +22,12 @@ CONF_ENABLED = "enabled"
 CONF_USERNAME = "username"
 CONF_PASSWORD = "password"
 CONF_ATTRIBUTESENSORS = "attributesensors"
+CONF_POLLING_INTERVAL = "polling_interval"
 
 # Defaults
 DEFAULT_NAME = "mint_mobile"
 DEFAULT_SCAN_INTERVAL = 15
+DEFAULT_POLLING_INTERVAL = 12
 
 
 STARTUP_MESSAGE = f"""
