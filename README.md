@@ -33,7 +33,7 @@ If you want to have the following attributes as additional sensors, during the s
 [![Validate with hassfest](https://github.com/ryanmac8/HA-Mint-Mobile/actions/workflows/combined.yaml/badge.svg)](https://github.com/ryanmac8/HA-Mint-Mobile/actions/workflows/combined.yaml)
 
 ![GitHub contributors](https://img.shields.io/github/contributors/ryanmac8/HA-Mint-Mobile)
-![Maintenance](https://img.shields.io/maintenance/yes/2022)
+![Maintenance](https://img.shields.io/maintenance/yes/2025)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ryanmac8/HA-Mint-Mobile)
 ![GitHub last commit](https://img.shields.io/github/last-commit/ryanmac8/HA-Mint-Mobile)
 
