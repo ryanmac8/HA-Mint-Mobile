@@ -101,6 +101,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     except Exception as err:
         raise ConfigEntryNotReady(f"Failed to perform initial fetch: {err}") from err
 
+    # Store configuration state to detect user-initiated changes vs token updates
+    coordinator.config_version = {
+        CONF_USERNAME: username,
+        CONF_PASSWORD: password,
+        CONF_POLLING_INTERVAL: polling_interval,
+        CONF_ATTRIBUTESENSORS: entry.data.get(CONF_ATTRIBUTESENSORS),
+    }
+
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
@@ -120,4 +128,17 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     """Update listener."""
-    await hass.config_entries.async_reload(entry.entry_id)
+    coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if not coordinator:
+        return
+
+    new_config = {
+        CONF_USERNAME: entry.data.get(CONF_USERNAME),
+        CONF_PASSWORD: entry.data.get(CONF_PASSWORD),
+        CONF_POLLING_INTERVAL: entry.data.get(CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL),
+        CONF_ATTRIBUTESENSORS: entry.data.get(CONF_ATTRIBUTESENSORS),
+    }
+
+    if getattr(coordinator, "config_version", None) != new_config:
+        _LOGGER.info("User configuration changed. Reloading integration...")
+        await hass.config_entries.async_reload(entry.entry_id)
