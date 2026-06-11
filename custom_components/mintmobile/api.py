@@ -90,10 +90,8 @@ class MintMobile:
             "accept": "application/json",
             "content-type": "application/json",
             "authorization": f"Bearer {STATIC_APP_TOKEN}",
-            "channel": "web-am",
-            "origin": "https://my.mintmobile.com",
-            "referer": "https://my.mintmobile.com/",
-            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0",
+            "kaena-channel": "ktrz9qhy92a4nx6",
+            "user-agent": "MintMobile | 2026.5.27 (9076) | arm64 | dce80f5e-5d5c-4c67-bd93-4e4e19f2db8f | Android",
         }
 
         try:
@@ -155,12 +153,10 @@ class MintMobile:
             raise Exception("Authentication failed")
 
         headers = {
-            "accept": "*/*",
+            "accept": "application/json",
             "authorization": f"Bearer {self.token}",
-            "channel": "web-am",
-            "origin": "https://my.mintmobile.com",
-            "referer": "https://my.mintmobile.com/",
-            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0",
+            "kaena-channel": "ktrz9qhy92a4nx6",
+            "user-agent": "MintMobile | 2026.5.27 (9076) | arm64 | dce80f5e-5d5c-4c67-bd93-4e4e19f2db8f | Android",
         }
 
         # 1. Fetch Account Details
