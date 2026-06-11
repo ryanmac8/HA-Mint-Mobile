@@ -3,6 +3,12 @@
 
 This integration creates sensors for each line and displays the remaining and used data usage for the month. If you have a Mint Mobile family, it will also pull in the data usage for each line. The sensor name includes additional attributes about the line.
 
+> **WARNING: Running Multiple Clients (Token Invalidation)**
+>
+> Mint Mobile's API rotates refresh tokens and only allows one active session per account. Running another automated client (like the TypeScript MQTT bridge) or logging into the official mobile app will invalidate the integration's token.
+>
+> When this happens, Home Assistant logs a `401 Unauthorized` warning and automatically recovers via a full login. To avoid warnings, do not run other automated API clients.
+
 
 ### Attributes Included:
 
