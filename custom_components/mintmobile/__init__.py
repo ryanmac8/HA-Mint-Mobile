@@ -7,7 +7,7 @@ import logging
 from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Config, HomeAssistant
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -17,6 +17,8 @@ from .const import (
     CONF_ATTRIBUTESENSORS,
     CONF_PASSWORD,
     CONF_USERNAME,
+    CONF_POLLING_INTERVAL,
+    DEFAULT_POLLING_INTERVAL,
     DOMAIN,
     ISSUE_URL,
     PLATFORMS,
@@ -24,48 +26,98 @@ from .const import (
     VERSION,
 )
 
-SCAN_INTERVAL = timedelta(minutes=5)
-
-_LOGGER: logging.Logger = logging.getLogger(__package__)
-
-
 _LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup(hass, config_entry):
-    """Disallow configuration via YAML"""
+class MintMobileDataUpdateCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching Mint Mobile data."""
 
+    def __init__(self, hass: HomeAssistant, client: MintMobile, polling_interval: int):
+        """Initialize."""
+        self.client = client
+        super().__init__(
+            hass,
+            _LOGGER,
+            name=DOMAIN,
+            update_interval=timedelta(hours=polling_interval),
+        )
+
+    async def _async_update_data(self):
+        """Update data via library."""
+        try:
+            return await self.client.async_get_all_data_remaining()
+        except Exception as exception:
+            raise UpdateFailed(f"Error communicating with Mint Mobile API: {exception}")
+
+
+async def async_setup(hass: HomeAssistant, config: dict):
+    """Disallow configuration via YAML"""
     return True
 
 
-async def async_setup_entry(hass, config_entry):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Load the saved entities."""
     _LOGGER.info(
-        "Version %s is starting, if you have any issues please report" " them here: %s",
+        "Version %s is starting, if you have any issues please report them here: %s",
         VERSION,
         ISSUE_URL,
     )
-    config_entry.options = config_entry.data
-    config_entry.add_update_listener(update_listener)
-    hass.async_create_task(
-        hass.config_entries.async_forward_entry_setup(config_entry, "sensor")
+
+    entry.async_on_unload(entry.add_update_listener(update_listener))
+
+    username = entry.data[CONF_USERNAME]
+    password = entry.data[CONF_PASSWORD]
+    token = entry.data.get("token")
+    refresh_token = entry.data.get("refresh_token")
+    expires_at = entry.data.get("expires_at")
+    polling_interval = entry.data.get(CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL)
+
+    session = async_get_clientsession(hass)
+
+    def token_update_callback(new_token, new_refresh_token, new_expires_at):
+        new_data = {
+            **entry.data,
+            "token": new_token,
+            "refresh_token": new_refresh_token,
+            "expires_at": new_expires_at,
+        }
+        hass.config_entries.async_update_entry(entry, data=new_data)
+
+    client = MintMobile(
+        session=session,
+        username=username,
+        password=password,
+        token=token,
+        refresh_token=refresh_token,
+        expires_at=expires_at,
+        token_update_callback=token_update_callback,
     )
 
-    return True
+    coordinator = MintMobileDataUpdateCoordinator(hass, client, polling_interval)
 
-
-async def async_unload_entry(hass, config_entry):
-    """Handle removal of an entry."""
+    # Perform first refresh
     try:
-        await hass.config_entries.async_forward_entry_unload(config_entry, "sensor")
-        _LOGGER.info("Successfully removed sensor from the " + DOMAIN + " integration")
-    except ValueError:
-        pass
+        await coordinator.async_config_entry_first_refresh()
+    except Exception as err:
+        raise ConfigEntryNotReady(f"Failed to perform initial fetch: {err}") from err
+
+    hass.data.setdefault(DOMAIN, {})
+    hass.data[DOMAIN][entry.entry_id] = coordinator
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
     return True
 
 
-async def update_listener(hass, entry):
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
+    """Handle removal of an entry."""
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
+        hass.data[DOMAIN].pop(entry.entry_id)
+        _LOGGER.info("Successfully removed sensor from the %s integration", DOMAIN)
+    return unload_ok
+
+
+async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     """Update listener."""
-    entry.data = entry.options
-    await hass.config_entries.async_forward_entry_unload(entry, "sensor")
-    hass.async_add_job(hass.config_entries.async_forward_entry_setup(entry, "sensor"))
+    await hass.config_entries.async_reload(entry.entry_id)
