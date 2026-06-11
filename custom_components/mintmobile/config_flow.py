@@ -5,7 +5,7 @@ from collections import OrderedDict
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
-from homeassistant.helpers.aiohttp_client import async_create_clientsession
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import MintMobile
 from .const import (
@@ -103,8 +103,12 @@ class MintMobileFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _test_credentials(self, username, password):
         """Return true if credentials is valid."""
-        mm = MintMobile(username, password)
-        return await self.hass.async_add_executor_job(mm.login)
+        session = async_get_clientsession(self.hass)
+        mm = MintMobile(session, username, password)
+        try:
+            return await mm.async_login()
+        except Exception:
+            return False
 
     @staticmethod
     @callback
@@ -169,6 +173,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def _test_credentials(self, username, password):
         """Return true if credentials is valid."""
-        mm = MintMobile(username, password)
-        return await self.hass.async_add_executor_job(mm.login)
+        session = async_get_clientsession(self.hass)
+        mm = MintMobile(session, username, password)
+        try:
+            return await mm.async_login()
+        except Exception:
+            return False
 
