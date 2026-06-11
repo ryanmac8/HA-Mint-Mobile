@@ -18,6 +18,9 @@ from .const import (
     CONF_PASSWORD,
     CONF_USERNAME,
     CONF_POLLING_INTERVAL,
+    CONF_TOKEN,
+    CONF_REFRESH_TOKEN,
+    CONF_EXPIRES_AT,
     DEFAULT_POLLING_INTERVAL,
     DOMAIN,
     ISSUE_URL,
@@ -67,9 +70,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
-    token = entry.data.get("token")
-    refresh_token = entry.data.get("refresh_token")
-    expires_at = entry.data.get("expires_at")
+    token = entry.data.get(CONF_TOKEN)
+    refresh_token = entry.data.get(CONF_REFRESH_TOKEN)
+    expires_at = entry.data.get(CONF_EXPIRES_AT)
     polling_interval = entry.data.get(CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL)
 
     session = async_get_clientsession(hass)
@@ -77,9 +80,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     def token_update_callback(new_token, new_refresh_token, new_expires_at):
         new_data = {
             **entry.data,
-            "token": new_token,
-            "refresh_token": new_refresh_token,
-            "expires_at": new_expires_at,
+            CONF_TOKEN: new_token,
+            CONF_REFRESH_TOKEN: new_refresh_token,
+            CONF_EXPIRES_AT: new_expires_at,
         }
         hass.config_entries.async_update_entry(entry, data=new_data)
 
