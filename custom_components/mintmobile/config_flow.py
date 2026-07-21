@@ -5,7 +5,7 @@ from collections import OrderedDict
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
-from homeassistant.helpers.aiohttp_client import async_create_clientsession
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import MintMobile
 from .const import (
@@ -13,6 +13,9 @@ from .const import (
     CONF_PASSWORD,
     CONF_USERNAME,
     CONF_POLLING_INTERVAL,
+    CONF_TOKEN,
+    CONF_REFRESH_TOKEN,
+    CONF_EXPIRES_AT,
     DEFAULT_POLLING_INTERVAL,
     DOMAIN,
     PLATFORMS,
@@ -103,25 +106,28 @@ class MintMobileFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _test_credentials(self, username, password):
         """Return true if credentials is valid."""
-        mm = MintMobile(username, password)
-        return await self.hass.async_add_executor_job(mm.login)
+        session = async_get_clientsession(self.hass)
+        mm = MintMobile(session, username, password)
+        try:
+            return await mm.async_login()
+        except Exception:
+            return False
 
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        return OptionsFlowHandler(config_entry)
+        return OptionsFlowHandler()
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
-    def __init__(self, config_entry):
+    def __init__(self) -> None:
         """Initialize HACS options flow."""
-        self.config_entry = config_entry
-        self.options = dict(config_entry.options)
+        super().__init__()
         self._errors = {}
         self._data = {}
 
     async def async_step_init(self, user_input=None):
-        return await self.async_step_user()
+        return await self.async_step_user(user_input)
 
     async def async_step_user(self, user_input=None):
         if user_input is not None:
@@ -155,20 +161,37 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def _update_options(self):
         """Update config entry options."""
-        valid = await self._test_credentials(
+        mm = await self._test_credentials(
             self._data[CONF_USERNAME],
             self._data[CONF_PASSWORD],
         )
-        if valid:
-            return self.async_create_entry(
-                title=self.config_entry.data.get(CONF_USERNAME), data=self._data
+        if mm is not None:
+            new_data = {
+                **self.config_entry.data,
+                CONF_USERNAME: self._data[CONF_USERNAME],
+                CONF_PASSWORD: self._data[CONF_PASSWORD],
+                CONF_ATTRIBUTESENSORS: self._data[CONF_ATTRIBUTESENSORS],
+                CONF_POLLING_INTERVAL: self._data[CONF_POLLING_INTERVAL],
+                CONF_TOKEN: mm.token,
+                CONF_REFRESH_TOKEN: mm.refresh_token,
+                CONF_EXPIRES_AT: mm.expires_at,
+            }
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, data=new_data
             )
+            return self.async_create_entry(title="", data={})
         else:
             self._errors["base"] = "invalid_credentials"
             return await self.async_step_user()
 
     async def _test_credentials(self, username, password):
         """Return true if credentials is valid."""
-        mm = MintMobile(username, password)
-        return await self.hass.async_add_executor_job(mm.login)
+        session = async_get_clientsession(self.hass)
+        mm = MintMobile(session, username, password)
+        try:
+            if await mm.async_login():
+                return mm
+        except Exception:
+            pass
+        return None
 

@@ -23,6 +23,9 @@ CONF_USERNAME = "username"
 CONF_PASSWORD = "password"
 CONF_ATTRIBUTESENSORS = "attributesensors"
 CONF_POLLING_INTERVAL = "polling_interval"
+CONF_TOKEN = "token"
+CONF_REFRESH_TOKEN = "refresh_token"
+CONF_EXPIRES_AT = "expires_at"
 
 # Defaults
 DEFAULT_NAME = "mint_mobile"
