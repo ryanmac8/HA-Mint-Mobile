@@ -1,0 +1,53 @@
+name: Publish release
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - custom_components/mintmobile/manifest.json
+
+permissions:
+  contents: write
+
+jobs:
+  tag-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read manifest version
+        id: manifest
+        run: |
+          VERSION=$(python3 -c "import json; print(json.load(open('custom_components/mintmobile/manifest.json'))['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if tag already exists
+        id: check
+        run: |
+          if git rev-parse "v${{ steps.manifest.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create tag
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ steps.manifest.outputs.version }}"
+          git push origin "v${{ steps.manifest.outputs.version }}"
+
+      - name: Create GitHub release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.manifest.outputs.version }}" \
+            --title "v${{ steps.manifest.outputs.version }}" \
+            --generate-notes \
+            --latest
