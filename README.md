@@ -3,6 +3,8 @@
 
 This integration creates sensors for each line and displays the remaining and used data usage for the month. If you have a Mint Mobile family, it will also pull in the data usage for each line. The sensor name includes additional attributes about the line.
 
+Data-only lines (tablet and mobile internet plans) are supported alongside phone lines; the correct subscriber type is detected automatically on the first refresh.
+
 > **WARNING: Running Multiple Clients (Token Invalidation)**
 >
 > Mint Mobile's API rotates refresh tokens and only allows one active session per account. Running another automated client (like the TypeScript MQTT bridge) or logging into the official mobile app will invalidate the integration's token.
