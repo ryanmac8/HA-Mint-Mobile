@@ -38,6 +38,8 @@ If you want to have the following attributes as additional sensors, during the s
 
 [![Validate with hassfest](https://github.com/ryanmac8/HA-Mint-Mobile/actions/workflows/combined.yaml/badge.svg)](https://github.com/ryanmac8/HA-Mint-Mobile/actions/workflows/combined.yaml)
 
+[![E2E](https://github.com/ryanmac8/HA-Mint-Mobile/actions/workflows/e2e.yml/badge.svg)](https://github.com/ryanmac8/HA-Mint-Mobile/actions/workflows/e2e.yml)
+
 ![GitHub contributors](https://img.shields.io/github/contributors/ryanmac8/HA-Mint-Mobile)
 ![Maintenance](https://img.shields.io/maintenance/yes/2026)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ryanmac8/HA-Mint-Mobile)
@@ -64,3 +66,38 @@ Enjoying my integration? Help me out and buy me a :coffee: for $3!
    * On Home Assistant (formerly Hass.io) and Home Assistant Container the final location should be `/config/custom_components/mintmobile`
    * On Home Assistant Supervised, Home Assistant Core, and Hassbian the final location should be `/home/homeassistant/.homeassistant/custom_components/mintmobile`
 3. Restart your instance.
+
+---
+
+## Development
+
+### Running the end-to-end tests
+
+The `tests/` suite boots a real Home Assistant instance, walks the config flow,
+sets the integration up and asserts on the resulting sensor states. Only the
+Mint Mobile gateway is stubbed — nothing else is mocked, and no network access
+is required.
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements_test.txt
+pytest
+```
+
+`requirements_test.txt` pins `pytest-homeassistant-custom-component`; each of its
+releases targets one Home Assistant version, so bumping that pin is how the
+suite moves to a newer core.
+
+The same suite runs in CI on every push to a pull request (the `e2e` check) and
+must pass before a PR can be merged.
+
+### Releases
+
+Releases are automated with
+[release-please](https://github.com/googleapis/release-please). Commits landing
+on `master` should follow
+[Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
+`chore:`, …). release-please keeps an open "chore: release x.y.z" pull request
+that updates `CHANGELOG.md`, `custom_components/mintmobile/manifest.json` and
+`custom_components/mintmobile/const.py`; merging it tags `vX.Y.Z` and publishes
+the matching GitHub Release that HACS picks up.

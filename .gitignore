@@ -1,2 +1,7 @@
 .DS_Store
 __pycache__
+.pytest_cache
+.venv/
+venv/
+*.egg-info/
+custom_components/mintmobile/test_tokens.json
