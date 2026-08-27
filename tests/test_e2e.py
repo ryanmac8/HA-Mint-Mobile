@@ -11,7 +11,7 @@ from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.mintmobile.api import decode_jwt
+from custom_components.mintmobile.api import STATIC_APP_TOKEN, decode_jwt
 from custom_components.mintmobile.const import (
     CONF_ATTRIBUTESENSORS,
     CONF_PASSWORD,
@@ -484,26 +484,10 @@ def _b64url_segment(payload: dict) -> str:
     return base64.urlsafe_b64encode(raw).decode().rstrip("=")
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Latent bug in custom_components/mintmobile/api.py: decode_jwt() uses "
-        "base64.b64decode, but JWTs are base64url-encoded (RFC 7519 / RFC 4648 "
-        "sec. 5). b64decode silently discards the out-of-alphabet '-' and '_', "
-        "so such a segment either raises 'Incorrect padding' or decodes to the "
-        "wrong bytes. The fix is one line: base64.urlsafe_b64decode. "
-        "NOT currently reachable with Mint's tokens -- a base64url segment only "
-        "contains '-'/'_' when the raw payload JSON has '>', '?', '~' or \\x7f at "
-        "a byte offset of 2 mod 3, which alphanumeric claims (numeric ids, "
-        "UUIDs, hex) never produce; the token shipped in api.py decodes fine. "
-        "Hence the contrived payload below. This is a correctness guard against "
-        "a future claim value, not a live outage."
-    ),
-    strict=True,
-)
 def test_decode_jwt_handles_base64url_specific_characters() -> None:
-    """decode_jwt should tolerate the full base64url alphabet ('-' and '_'),
-    since that is what real JWT payload segments are encoded with -- not the
-    standard base64 alphabet ('+' and '/') that base64.b64decode expects.
+    """decode_jwt must tolerate the full base64url alphabet ('-' and '_'),
+    which is what real JWT payload segments are encoded with -- not the
+    standard base64 alphabet ('+' and '/').
     """
     header = _b64url_segment({"alg": "HS256", "typ": "JWT"})
     payload = {"sub": ">djA>Wt[GS=U8po!799NksnRH9~u&c", "exp": 1893456007}
@@ -515,3 +499,80 @@ def test_decode_jwt_handles_base64url_specific_characters() -> None:
 
     assert decoded["sub"] == payload["sub"]
     assert decoded["exp"] == payload["exp"]
+
+
+def test_decode_jwt_still_accepts_standard_base64_segments() -> None:
+    """The base64url fix must not regress segments encoded with the standard
+    alphabet: '+' and '/' have to keep decoding as they did before.
+    """
+    payload = {"sub": ">djA>Wt[GS=U8po!799NksnRH9~u&c", "exp": 1893456007}
+    raw = json.dumps(payload, separators=(",", ":")).encode()
+    body = base64.b64encode(raw).decode().rstrip("=")
+    assert "+" in body or "/" in body  # sanity check on the fixture itself
+
+    decoded = decode_jwt(f"header.{body}.signature")
+
+    assert decoded["sub"] == payload["sub"]
+    assert decoded["exp"] == payload["exp"]
+
+
+def test_decode_jwt_rejects_a_corrupt_segment_instead_of_silently_decoding() -> None:
+    """A segment containing characters in neither alphabet must raise, not be
+    silently stripped down to a shorter, wrong payload.
+    """
+    body = _b64url_segment({"sub": "123456", "exp": 1893456007})
+    corrupt = body[:4] + "*!" + body[4:]
+
+    with pytest.raises(ValueError, match="Failed to decode JWT"):
+        decode_jwt(f"header.{corrupt}.signature")
+
+
+def test_decode_jwt_rejects_a_token_with_no_payload_segment() -> None:
+    """A string that is not a JWT at all must raise a clear ValueError."""
+    with pytest.raises(ValueError, match="Failed to decode JWT"):
+        decode_jwt("not-a-jwt")
+
+
+def test_decode_jwt_reads_the_token_shipped_in_api_py() -> None:
+    """Regression guard: the static app token bundled in api.py must keep
+    decoding to its known claims.
+    """
+    assert decode_jwt(STATIC_APP_TOKEN) == {
+        "iat": 1507766824,
+        "nbf": 1507766824,
+        "exp": 1594080424,
+        "aud": "MintApp",
+        "iss": "ULTRA",
+    }
+
+
+async def test_setup_succeeds_with_a_base64url_encoded_session_token(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """End-to-end proof of the fix: a login token whose payload segment
+    contains base64url characters must set the integration up normally, with
+    the account id correctly recovered from the JWT.
+    """
+    body = _b64url_segment({"sub": ACCOUNT_ID, "exp": int(time.time()) + 3600, "jti": ">?~"})
+    assert "-" in body or "_" in body  # the token must actually exercise the fix
+    token = f"{_b64url_segment({'alg': 'HS256', 'typ': 'JWT'})}.{body}.signature"
+
+    mint_api.mock.post(
+        f"{GATEWAY}/v1/mint/login",
+        json={"token": token, "refreshToken": "refresh-token-abc"},
+    )
+    mint_api.register_account()
+    mint_api.register_plans()
+    mint_api.register_usage()
+    mint_api.register_multi_line()
+
+    result = await run_config_flow(hass)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.data["token"] == token
+    # The account id came from the JWT "sub" claim, so the per-account
+    # endpoints were addressed correctly.
+    assert hass.states.get(PRIMARY_REMAINING).state == "5.0"
+    assert hass.states.get(MEMBER_REMAINING).state == "2.0"
