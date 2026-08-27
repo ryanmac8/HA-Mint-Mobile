@@ -13,16 +13,24 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      # A token from a GitHub App installation, not GITHUB_TOKEN. Events
+      # authored with GITHUB_TOKEN don't trigger other workflows, so a release
+      # PR opened with it would never get an "e2e"/"title-lint" run and (once
+      # those are required checks) could never be merged. It also can't be a
+      # personal PAT: that would make the release PR's author you, and GitHub
+      # blocks self-approval on a repo that requires review.
+      - name: Mint a short-lived installation token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Run release-please
         id: release
         uses: googleapis/release-please-action@v5
         with:
-          # RELEASE_PLEASE_TOKEN (a PAT or GitHub App token) is strongly
-          # preferred: PRs opened with the default GITHUB_TOKEN do not trigger
-          # other workflows, so the required "e2e" check would never run on the
-          # release PR and it could not be merged. The fallback keeps this
-          # workflow functional until that secret exists.
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
