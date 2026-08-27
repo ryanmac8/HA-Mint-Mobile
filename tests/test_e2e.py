@@ -11,7 +11,11 @@ from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.mintmobile.api import STATIC_APP_TOKEN, decode_jwt
+from custom_components.mintmobile.api import (
+    STATIC_APP_TOKEN,
+    SUBSCRIBER_TYPES,
+    decode_jwt,
+)
 from custom_components.mintmobile.const import (
     CONF_ATTRIBUTESENSORS,
     CONF_PASSWORD,
@@ -576,3 +580,115 @@ async def test_setup_succeeds_with_a_base64url_encoded_session_token(
     # endpoints were addressed correctly.
     assert hass.states.get(PRIMARY_REMAINING).state == "5.0"
     assert hass.states.get(MEMBER_REMAINING).state == "2.0"
+
+
+async def test_data_only_line_falls_back_to_a_working_subscriber_type(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """A tablet / mobile-internet line 401s on subscriberType=PHONE. Setup must
+    advance to the next candidate rather than failing the whole entry.
+    """
+    mint_api.register_login()
+    mint_api.register_account()
+    mint_api.register_plans()
+    mint_api.register_usage_only_accepting("TABLET")
+    mint_api.mock.get(f"{GATEWAY}/v1/mint/account/{ACCOUNT_ID}/multi-line", status=404)
+
+    result = await run_config_flow(hass)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert entry.state is ConfigEntryState.LOADED
+    # The first refresh probes PHONE, gets a 401, and advances to TABLET.
+    # (Setup refreshes more than once: async_add_entities(..., True) makes
+    # CoordinatorEntity.async_update request another refresh.) Every attempt
+    # after the initial probe must go straight to the discovered type.
+    attempts = mint_api.usage_attempts()
+    assert attempts[:2] == ["PHONE", "TABLET"]
+    assert set(attempts[2:]) <= {"TABLET"}
+    assert hass.states.get(PRIMARY_REMAINING).state == "5.0"
+    assert hass.states.get(PRIMARY_USED).state == "3.0"
+
+
+async def test_phone_line_still_makes_a_single_usage_request(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """Regression guard: phone accounts must not pay for the fallback loop.
+    PHONE is tried first, succeeds, and no further candidates are attempted.
+    """
+    mint_api.register_login()
+    mint_api.register_account()
+    mint_api.register_plans()
+    mint_api.register_usage_only_accepting("PHONE")
+    mint_api.mock.get(f"{GATEWAY}/v1/mint/account/{ACCOUNT_ID}/multi-line", status=404)
+
+    result = await run_config_flow(hass)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    # PHONE is tried first and works, so no other candidate is ever sent.
+    assert set(mint_api.usage_attempts()) == {"PHONE"}
+    assert hass.states.get(PRIMARY_REMAINING).state == "5.0"
+
+
+async def test_discovered_subscriber_type_is_reused_on_the_next_poll(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """Once a subscriber type is known it is tried first, so later polls cost
+    one request instead of re-walking the 401 every refresh.
+    """
+    mint_api.register_login()
+    mint_api.register_account()
+    mint_api.register_plans()
+    mint_api.register_usage_only_accepting("TABLET")
+    mint_api.mock.get(f"{GATEWAY}/v1/mint/account/{ACCOUNT_ID}/multi-line", status=404)
+
+    await run_config_flow(hass)
+    during_setup = len(mint_api.usage_attempts())
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+    await coordinator.async_refresh()
+    await hass.async_block_till_done()
+
+    assert coordinator.last_update_success
+    assert mint_api.usage_attempts()[during_setup:] == ["TABLET"]
+
+
+async def test_a_non_401_usage_error_is_not_retried_across_subscriber_types(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """Only a 401 means "wrong subscriber type". A 5xx is a real outage and
+    must surface immediately instead of being masked by the fallback loop.
+    """
+    mint_api.register_login()
+    mint_api.register_account()
+    mint_api.register_plans()
+    mint_api.mock.post(
+        f"{GATEWAY}/v2/mint/account/{ACCOUNT_ID}/usage", status=503, text="boom"
+    )
+
+    result = await run_config_flow(hass)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert mint_api.usage_attempts() == ["PHONE"]
+
+
+async def test_setup_retries_when_no_subscriber_type_is_accepted(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """If every candidate 401s the error is still reported, after each one has
+    genuinely been tried.
+    """
+    mint_api.register_login()
+    mint_api.register_account()
+    mint_api.register_plans()
+    mint_api.register_usage_only_accepting("NOT_A_REAL_TYPE")
+
+    result = await run_config_flow(hass)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    assert mint_api.usage_attempts() == list(SUBSCRIBER_TYPES)

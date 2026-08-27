@@ -34,6 +34,11 @@ def decode_jwt(token: str) -> dict:
         _LOGGER.error("Failed to decode JWT: %s", e)
         raise ValueError(f"Failed to decode JWT: {e}")
 
+# Subscriber types accepted by the usage endpoint. Phone lines report as
+# "PHONE"; data-only lines (tablet, mobile internet) reject that value with a
+# 401 and must send their own type instead.
+SUBSCRIBER_TYPES = ("PHONE", "TABLET", "INTERNET")
+
 class MintMobile:
     def __init__(self, session: aiohttp.ClientSession, username, password, token=None, refresh_token=None, expires_at=None, token_update_callback=None):
         self.session = session
@@ -45,6 +50,7 @@ class MintMobile:
         self.token_update_callback = token_update_callback
         self.id = ""
         self.info = {}
+        self.subscriber_type = None
 
     async def async_login(self):
         """Log in to Mint Mobile and obtain a new session token."""
@@ -188,15 +194,39 @@ class MintMobile:
 
         # 3. Fetch Data Usage
         usage_url = f"https://mint-gateway.mintmobile.com/v2/mint/account/{self.id}/usage"
-        usage_body = {
-            "types": ["data"],
-            "subscriberType": "PHONE",
-        }
         usage_headers = {**headers, "content-type": "application/json"}
-        async with self.session.post(usage_url, json=usage_body, headers=usage_headers) as r:
-            if r.status != 200:
-                raise Exception(f"Failed to fetch usage: {r.status}")
-            usage_data = await r.json()
+
+        # Try the subscriber type we already know works for this account, then
+        # fall back through the rest. Only a 401 means "wrong subscriber type";
+        # any other status is a real error and is raised as before.
+        candidates = list(SUBSCRIBER_TYPES)
+        if self.subscriber_type in candidates:
+            candidates.remove(self.subscriber_type)
+            candidates.insert(0, self.subscriber_type)
+
+        usage_data = None
+        last_status = None
+        for subscriber_type in candidates:
+            usage_body = {
+                "types": ["data"],
+                "subscriberType": subscriber_type,
+            }
+            async with self.session.post(usage_url, json=usage_body, headers=usage_headers) as r:
+                last_status = r.status
+                if r.status == 200:
+                    usage_data = await r.json()
+                    if self.subscriber_type != subscriber_type:
+                        _LOGGER.debug(
+                            "Using subscriberType=%s for usage on %s",
+                            subscriber_type, self.username,
+                        )
+                        self.subscriber_type = subscriber_type
+                    break
+                if r.status != 401:
+                    break
+
+        if usage_data is None:
+            raise Exception(f"Failed to fetch usage: {last_status}")
 
         # Extract primary line info
         phone = account_data.get("msisdn") or account_data.get("phone", {}).get("msisdn") or self.username

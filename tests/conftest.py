@@ -4,6 +4,9 @@ import json
 import time
 
 import pytest
+from pytest_homeassistant_custom_component.test_util.aiohttp import (
+    AiohttpClientMockResponse,
+)
 
 pytest_plugins = "pytest_homeassistant_custom_component"
 
@@ -113,6 +116,41 @@ class MintApiFixture:
             f"{GATEWAY}/v1/mint/account/{ACCOUNT_ID}/plans",
             json={"plans": [{"id": "plan-12mo", "months": 12}]},
         )
+
+    def register_usage_only_accepting(self, accepted: str) -> None:
+        """Usage endpoint that 401s every subscriberType except ``accepted``.
+
+        This is how a data-only line behaves: the account and plans calls
+        succeed with the same token, and only the usage call rejects the
+        subscriber type it was sent.
+        """
+
+        async def _respond(method, url, data):
+            if (data or {}).get("subscriberType") == accepted:
+                return AiohttpClientMockResponse(
+                    method,
+                    url,
+                    status=200,
+                    json={
+                        "remainingHighSpeedData": 5120,
+                        "usageHighSpeedData": 3072,
+                    },
+                )
+            return AiohttpClientMockResponse(
+                method, url, status=401, text="unauthorized"
+            )
+
+        self.mock.post(
+            f"{GATEWAY}/v2/mint/account/{ACCOUNT_ID}/usage", side_effect=_respond
+        )
+
+    def usage_attempts(self) -> list:
+        """Return the subscriberType sent on each account-level usage call."""
+        return [
+            (data or {}).get("subscriberType")
+            for _method, url, data, _headers in self.mock.mock_calls
+            if str(url).endswith(f"/v2/mint/account/{ACCOUNT_ID}/usage")
+        ]
 
     def register_usage(self) -> None:
         self.mock.post(
