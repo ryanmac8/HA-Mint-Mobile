@@ -1,0 +1,45 @@
+name: Semantic PR
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  title-lint:
+    name: title-lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lint PR title against Conventional Commits
+        uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # release-please reads the squash-merge commit subject, which this
+          # repo sets to the PR title (squash-only merges, see repo settings).
+          # A non-conventional title means the change is silently invisible
+          # to release-please: no version bump, no changelog line.
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            docs
+            ci
+            test
+            chore
+            build
+            style
+            revert
+          requireScope: false
+          # Squash-only merges (see repo settings) default the merge UI to a
+          # single-commit PR's own commit message rather than its title. If
+          # that gets accepted at merge time, a good PR title never reaches
+          # the squash subject that release-please actually reads.
+          validateSingleCommit: true
+          validateSingleCommitMatchesPrTitle: true
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The PR title's subject (after "type:") should not start with an uppercase letter.
