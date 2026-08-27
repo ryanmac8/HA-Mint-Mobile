@@ -8,14 +8,27 @@ _LOGGER = logging.getLogger(__name__)
 
 STATIC_APP_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1MDc3NjY4MjQsIm5iZiI6MTUwNzc2NjgyNCwiZXhwIjoxNTk0MDgwNDI0LCJhdWQiOiJNaW50QXBwIiwiaXNzIjoiVUxUUkEifQ.r909IZmcavEhqvZO0td_-Ts_q27BBk4cCbFRXpDBQUM"
 
+# JWT segments use the base64url alphabet, which swaps "+" and "/" for "-"
+# and "_". Translating back lets one decode call accept either alphabet.
+_B64URL_TO_STANDARD = str.maketrans("-_", "+/")
+
+
 def decode_jwt(token: str) -> dict:
+    """Decode the payload segment of a JWT.
+
+    Segments are base64url encoded (RFC 7519, RFC 4648 section 5). Decoding
+    them with the standard alphabet silently discards any "-" or "_", which
+    either trips the padding check or, worse, yields a corrupted payload and a
+    wrong account id. Translating first avoids that; validate=True then makes a
+    genuinely malformed segment raise rather than decode to garbage.
+    """
     try:
         parts = token.split(".")
         if len(parts) < 2:
             raise ValueError("Invalid JWT format")
-        payload = parts[1]
+        payload = parts[1].translate(_B64URL_TO_STANDARD)
         payload += "=" * ((4 - len(payload) % 4) % 4)
-        decoded = base64.b64decode(payload).decode("utf-8")
+        decoded = base64.b64decode(payload, validate=True).decode("utf-8")
         return json.loads(decoded)
     except Exception as e:
         _LOGGER.error("Failed to decode JWT: %s", e)

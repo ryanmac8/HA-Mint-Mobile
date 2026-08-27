@@ -1,0 +1,4 @@
+# Pins the Home Assistant test harness. Each release of
+# pytest-homeassistant-custom-component targets one Home Assistant version, so
+# bumping this pin is how the e2e suite moves to a newer core.
+pytest-homeassistant-custom-component==0.13.316

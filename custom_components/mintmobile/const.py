@@ -3,7 +3,7 @@
 NAME = "Mint Mobile"
 DOMAIN = "mintmobile"
 DOMAIN_DATA = f"{DOMAIN}_data"
-VERSION = "0.0.1"
+VERSION = "3.0.0"  # x-release-please-version
 ATTRIBUTION = "Data provided by https://www.mintmobile.com"
 ISSUE_URL = "https://github.com/ryanmac8/HA-Mint-Mobile/issues"
 
