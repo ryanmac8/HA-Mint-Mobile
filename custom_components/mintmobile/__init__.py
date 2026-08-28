@@ -14,13 +14,16 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import MintMobile
 from .const import (
+    ATTRIBUTE_SENSOR_KEYS,
     CONF_ATTRIBUTESENSORS,
+    CONF_LOGIN_MODE,
     CONF_PASSWORD,
     CONF_USERNAME,
     CONF_POLLING_INTERVAL,
     CONF_TOKEN,
     CONF_REFRESH_TOKEN,
     CONF_EXPIRES_AT,
+    DEFAULT_LOGIN_MODE,
     DEFAULT_POLLING_INTERVAL,
     DOMAIN,
     ISSUE_URL,
@@ -28,6 +31,17 @@ from .const import (
     STARTUP_MESSAGE,
     VERSION,
 )
+
+
+def _attribute_sensor_snapshot(entry_data: dict) -> dict:
+    """Per-attribute sensor flags, falling back to any legacy blanket value.
+
+    Used to detect user-initiated option changes; must agree with the same
+    fallback sensor.py uses so a reload doesn't fire on every restart for
+    entries that predate the per-attribute keys.
+    """
+    legacy_default = bool(entry_data.get(CONF_ATTRIBUTESENSORS, False))
+    return {key: bool(entry_data.get(key, legacy_default)) for key in ATTRIBUTE_SENSOR_KEYS}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,6 +84,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     username = entry.data[CONF_USERNAME]
     password = entry.data[CONF_PASSWORD]
+    login_mode = entry.data.get(CONF_LOGIN_MODE, DEFAULT_LOGIN_MODE)
     token = entry.data.get(CONF_TOKEN)
     refresh_token = entry.data.get(CONF_REFRESH_TOKEN)
     expires_at = entry.data.get(CONF_EXPIRES_AT)
@@ -90,6 +105,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         session=session,
         username=username,
         password=password,
+        login_mode=login_mode,
         token=token,
         refresh_token=refresh_token,
         expires_at=expires_at,
@@ -108,8 +124,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     coordinator.config_version = {
         CONF_USERNAME: username,
         CONF_PASSWORD: password,
+        CONF_LOGIN_MODE: login_mode,
         CONF_POLLING_INTERVAL: polling_interval,
-        CONF_ATTRIBUTESENSORS: entry.data.get(CONF_ATTRIBUTESENSORS),
+        **_attribute_sensor_snapshot(entry.data),
     }
 
     hass.data.setdefault(DOMAIN, {})
@@ -138,8 +155,9 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     new_config = {
         CONF_USERNAME: entry.data.get(CONF_USERNAME),
         CONF_PASSWORD: entry.data.get(CONF_PASSWORD),
+        CONF_LOGIN_MODE: entry.data.get(CONF_LOGIN_MODE, DEFAULT_LOGIN_MODE),
         CONF_POLLING_INTERVAL: entry.data.get(CONF_POLLING_INTERVAL, DEFAULT_POLLING_INTERVAL),
-        CONF_ATTRIBUTESENSORS: entry.data.get(CONF_ATTRIBUTESENSORS),
+        **_attribute_sensor_snapshot(entry.data),
     }
 
     if getattr(coordinator, "config_version", None) != new_config:
