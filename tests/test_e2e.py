@@ -861,8 +861,8 @@ async def test_linked_internet_line_appears_alongside_phone(
     result = await run_config_flow(hass, login_mode=LOGIN_MODE_PHONE)
     assert result["type"] is FlowResultType.CREATE_ENTRY
 
-    internet_remaining = "sensor.ryan_mobile_data_usage_remaining_2"
-    internet_used = "sensor.ryan_mobile_data_used_2"
+    internet_remaining = "sensor.ryan_internet_data_usage_remaining"
+    internet_used = "sensor.ryan_internet_data_used"
     assert hass.states.get(PRIMARY_REMAINING).state == "5.0"
     assert hass.states.get(PRIMARY_REMAINING).attributes["line_type"] == "phone"
     assert hass.states.get(internet_remaining).state == "1000.0"
@@ -871,36 +871,30 @@ async def test_linked_internet_line_appears_alongside_phone(
     assert hass.states.get(internet_remaining).attributes["phone_number"] == "7778889999"
 
 
-async def test_internet_login_still_surfaces_linked_phone_line(
+async def test_internet_login_labels_the_primary_line_from_the_login_response(
     hass: HomeAssistant, mint_api
 ) -> None:
-    """The reverse of the above: logging in with the Minternet credential on
-    a linked account must still surface the phone line, not just internet.
+    """The primary line's label comes from the login response's
+    subscriberType (ha-mint-mobile#39), not from an assumption that the
+    top-level account data is always a phone line. Logging in with the
+    Minternet credential must produce an "internet"-labeled primary line
+    even though this fixture's top-level data is phone-shaped.
     """
     mint_api.register_login(primary_type="INTERNET")
-    mint_api.register_account(
-        internet={
-            "msisdn": "7778889999",
-            "firstName": "Ryan",
-            "plan": {
-                "exp": mint_api._ts(180),
-                "endOfCycle": mint_api._ts(20),
-                "months": 12,
-            },
-        }
-    )
+    mint_api.register_account()  # top-level data is phone-shaped, as always
     mint_api.register_plans()
-    mint_api.register_usage(internet={"remainingHighSpeedData": 1024000, "usageHighSpeedData": 512000})
+    mint_api.register_usage_only_accepting("PHONE")
     mint_api.mock.get(f"{GATEWAY}/v1/mint/account/{ACCOUNT_ID}/multi-line", status=404)
 
     result = await run_config_flow(hass, login_mode=LOGIN_MODE_INTERNET, username="jdoe-internet")
     assert result["type"] is FlowResultType.CREATE_ENTRY
 
-    # Primary line is now the INTERNET product (top-level data, per the
-    # login response's subscriberType); "phone" nested data is the account's
-    # top-level dict itself in this fixture, so no extra phone line is
-    # fabricated -- the point is the primary line is correctly labeled.
-    assert hass.states.get(PRIMARY_REMAINING).attributes["line_type"] == "internet"
+    internet_remaining = "sensor.ryan_internet_data_usage_remaining"
+    assert hass.states.get(internet_remaining).attributes["line_type"] == "internet"
+    assert hass.states.get(internet_remaining).state == "5.0"
+    # No separate "phone"-labeled line: this fixture's account response has
+    # no nested "phone" key at all, so there's nothing else to surface.
+    assert hass.states.get(PRIMARY_REMAINING) is None
 
 
 async def test_internet_only_account_creates_a_single_correctly_labeled_line(
@@ -918,8 +912,11 @@ async def test_internet_only_account_creates_a_single_correctly_labeled_line(
     result = await run_config_flow(hass, login_mode=LOGIN_MODE_INTERNET, username="jdoe-internet")
     assert result["type"] is FlowResultType.CREATE_ENTRY
 
-    assert hass.states.get(PRIMARY_REMAINING).attributes["line_type"] == "internet"
-    assert hass.states.get("sensor.ryan_mobile_data_usage_remaining_2") is None
+    assert hass.states.get("sensor.ryan_internet_data_usage_remaining").attributes["line_type"] == "internet"
+    # Exactly one line's worth of entities (5, since attribute sensors
+    # default on in run_config_flow) -- proves nothing was double-counted.
+    line_entities = [eid for eid in hass.states.async_entity_ids("sensor") if eid.startswith("sensor.ryan_")]
+    assert len(line_entities) == 5
 
 
 async def test_phone_only_account_is_unaffected_by_envelope_support(
@@ -935,7 +932,7 @@ async def test_phone_only_account_is_unaffected_by_envelope_support(
 
     assert hass.states.get(PRIMARY_REMAINING).state == "5.0"
     assert hass.states.get(PRIMARY_REMAINING).attributes["line_type"] == "phone"
-    assert hass.states.get("sensor.ryan_mobile_data_usage_remaining_2") is None
+    assert hass.states.get("sensor.ryan_internet_data_usage_remaining") is None
 
 
 async def test_multi_line_family_members_are_labeled_phone(

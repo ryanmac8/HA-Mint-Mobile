@@ -17,6 +17,22 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# "phone" keeps its historical "Mobile" label so every existing installation's
+# entity names -- and therefore entity_ids, which dashboards/automations
+# reference -- are completely unaffected. "internet"/"tablet" are new lines
+# nobody has today, so there's no prior name to preserve for them.
+LINE_TYPE_LABELS = {
+    "phone": "Mobile",
+    "internet": "Internet",
+    "tablet": "Tablet",
+}
+
+
+def _line_label(data: dict | None) -> str:
+    """Return the naming label for a line's data dict (e.g. "Internet")."""
+    line_type = data.get("line_type", "phone") if data else "phone"
+    return LINE_TYPE_LABELS.get(line_type, "Mobile")
+
 
 def _attribute_sensor_enabled(entry, key: str) -> bool:
     """True if this attribute should also get its own sensor entity.
@@ -69,7 +85,7 @@ class MintMobileSensor(CoordinatorEntity, Entity):
         """Return the name of the sensor."""
         data = self.coordinator.data.get(self.msisdn)
         line_name = data["line_name"] if data else "Mint"
-        return f"{line_name} Mobile Data Usage Remaining"
+        return f"{line_name} {_line_label(data)} Data Usage Remaining"
 
     @property
     def state(self):
@@ -126,7 +142,7 @@ class DataUsed(CoordinatorEntity, Entity):
         """Return the name of the sensor."""
         data = self.coordinator.data.get(self.msisdn)
         line_name = data["line_name"] if data else "Mint"
-        return f"{line_name} Mobile Data Used"
+        return f"{line_name} {_line_label(data)} Data Used"
 
     @property
     def state(self):
@@ -183,7 +199,7 @@ class CurrentPlanSensor(CoordinatorEntity, Entity):
         """Return the name of the sensor."""
         data = self.coordinator.data.get(self.msisdn)
         line_name = data["line_name"] if data else "Mint"
-        return f"{line_name} Mint Mobile Plan Term"
+        return f"{line_name} Mint {_line_label(data)} Plan Term"
 
     @property
     def state(self):
@@ -237,7 +253,7 @@ class DaysRemainingInMonthSensor(CoordinatorEntity, Entity):
         """Return the name of the sensor."""
         data = self.coordinator.data.get(self.msisdn)
         line_name = data["line_name"] if data else "Mint"
-        return f"{line_name} Mint Mobile Days Remaining In Month"
+        return f"{line_name} Mint {_line_label(data)} Days Remaining In Month"
 
     @property
     def state(self):
@@ -291,7 +307,7 @@ class DaysRemainingInPlanSensor(CoordinatorEntity, Entity):
         """Return the name of the sensor."""
         data = self.coordinator.data.get(self.msisdn)
         line_name = data["line_name"] if data else "Mint"
-        return f"{line_name} Mint Mobile Days Remaining In Plan"
+        return f"{line_name} Mint {_line_label(data)} Days Remaining In Plan"
 
     @property
     def state(self):
