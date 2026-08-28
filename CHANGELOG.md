@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/ryanmac8/HA-Mint-Mobile/compare/v3.0.1...v3.1.0) (2026-08-28)
+
+
+### Features
+
+* support linked Minternet lines and split attribute-sensor setup ([#46](https://github.com/ryanmac8/HA-Mint-Mobile/issues/46)) ([ca0c727](https://github.com/ryanmac8/HA-Mint-Mobile/commit/ca0c727c57c3e6229891796f006b593e403abb48))
+
 ## [3.0.1](https://github.com/ryanmac8/HA-Mint-Mobile/compare/v3.0.0...v3.0.1) (2026-08-27)
 
 
