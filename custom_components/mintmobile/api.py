@@ -6,6 +6,11 @@ import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 
+# Mirrors const.LOGIN_MODE_INTERNET/const.LOGIN_MODE_PHONE. Kept as a literal
+# here rather than imported so this module still runs standalone via test.py
+# (`from api import MintMobile`, outside the custom_components package).
+LOGIN_MODE_INTERNET = "internet"
+
 STATIC_APP_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1MDc3NjY4MjQsIm5iZiI6MTUwNzc2NjgyNCwiZXhwIjoxNTk0MDgwNDI0LCJhdWQiOiJNaW50QXBwIiwiaXNzIjoiVUxUUkEifQ.r909IZmcavEhqvZO0td_-Ts_q27BBk4cCbFRXpDBQUM"
 
 # JWT segments use the base64url alphabet, which swaps "+" and "/" for "-"
@@ -39,11 +44,52 @@ def decode_jwt(token: str) -> dict:
 # 401 and must send their own type instead.
 SUBSCRIBER_TYPES = ("PHONE", "TABLET", "INTERNET")
 
+# account/{id} and its usage response both return every product linked to
+# the account in one payload: values at the top level, plus the same shape
+# again nested under "phone"/"internet"/"tablet" keys for whichever of those
+# are also linked. LINE_TYPE maps a nested key to the label exposed on that
+# line's "line_type" attribute; the top-level line uses whichever of these
+# matches its own subscriber type (see _line_type_for below).
+LINE_TYPES = ("phone", "internet", "tablet")
+
+
+def _extract_product_fields(product: dict, fallback_name: str) -> dict:
+    """Pull the common account fields out of one product's dict.
+
+    Mint returns this exact shape (msisdn, firstName, plan.{exp,endOfCycle,
+    months}) both at the top level of the account response and again nested
+    under "internet"/"tablet" for any other product linked to the account,
+    so this same extraction applies whichever dict it's handed.
+    """
+    plan = product.get("plan") or {}
+    now_sec = int(time.time())
+    plan_exp = plan.get("exp") or 0
+    end_of_cycle = plan.get("endOfCycle") or 0
+    return {
+        "phone_number": product.get("msisdn") or "",
+        "line_name": product.get("firstName") or fallback_name,
+        "endOfCycle": max(0, int((end_of_cycle - now_sec) / 86400)),
+        "months": plan.get("months") or 0,
+        "exp": max(0, int((plan_exp - now_sec) / 86400)),
+    }
+
+
+def _extract_usage_fields(usage: dict) -> dict:
+    """Pull remaining/used data out of one product's usage dict."""
+    remaining_mb = usage.get("remainingHighSpeedData", 0)
+    used_mb = usage.get("usageHighSpeedData", 0)
+    return {
+        "remaining4G": round(remaining_mb / 1024, 2),
+        "used4G": round(used_mb / 1024, 2),
+    }
+
+
 class MintMobile:
-    def __init__(self, session: aiohttp.ClientSession, username, password, token=None, refresh_token=None, expires_at=None, token_update_callback=None):
+    def __init__(self, session: aiohttp.ClientSession, username, password, login_mode="phone", token=None, refresh_token=None, expires_at=None, token_update_callback=None):
         self.session = session
         self.username = username
         self.password = password
+        self.login_mode = login_mode
         self.token = token
         self.refresh_token = refresh_token
         self.expires_at = expires_at
@@ -51,17 +97,32 @@ class MintMobile:
         self.id = ""
         self.info = {}
         self.subscriber_type = None
+        # What the account's own top-level identity is, e.g. "INTERNET" for
+        # a Minternet-only login. Learned from the login/refresh response
+        # when present (see #39); otherwise inferred from subscriber_type
+        # once usage succeeds, defaulting to PHONE as a last resort so every
+        # account that predates this attribute keeps behaving exactly as
+        # before.
+        self.primary_type = None
 
     async def async_login(self):
         """Log in to Mint Mobile and obtain a new session token."""
-        _LOGGER.debug("Logging into Mint Mobile with phone: %s", self.username)
+        _LOGGER.debug("Logging into Mint Mobile with login_mode=%s", self.login_mode)
         login_url = "https://mint-gateway.mintmobile.com/v1/mint/login"
+        # A Minternet-only credential authenticates on the same endpoint but
+        # under a "username" field instead of "msisdn". subscriberType stays
+        # "PHONE" in the request body either way -- confirmed against a real
+        # Minternet login capture (ha-mint-mobile#39); the request value
+        # doesn't reflect the account type, only the response does (read
+        # below). Don't be tempted to set it to "INTERNET" here: that's
+        # unverified and the "PHONE" constant is the only shape known to work.
+        credential_field = "username" if self.login_mode == LOGIN_MODE_INTERNET else "msisdn"
         login_body = {
-            "msisdn": self.username,
+            credential_field: self.username,
             "password": self.password,
             "subscriberType": "PHONE",
         }
-        
+
         headers = {
             "accept": "application/json",
             "content-type": "application/json",
@@ -87,7 +148,12 @@ class MintMobile:
             payload = decode_jwt(self.token)
             self.id = str(payload.get("sub") or payload.get("userId") or response.get("userId"))
             self.expires_at = payload.get("exp") or (int(time.time()) + 900)
-            
+            # Unlike the request, the login response's subscriberType does
+            # reflect the account actually authenticated -- "INTERNET" for a
+            # Minternet login, confirmed in #39. Used later to label the
+            # primary line instead of assuming it's always a phone line.
+            self.primary_type = response.get("subscriberType") or self.primary_type
+
             if self.token_update_callback:
                 self.token_update_callback(self.token, self.refresh_token, self.expires_at)
             
@@ -128,7 +194,8 @@ class MintMobile:
                     self.refresh_token = new_refresh_token
                     payload = decode_jwt(self.token)
                     self.expires_at = payload.get("exp") or (int(time.time()) + 900)
-                    
+                    self.primary_type = response.get("subscriberType") or self.primary_type
+
                     if self.token_update_callback:
                         self.token_update_callback(self.token, self.refresh_token, self.expires_at)
                     
@@ -207,8 +274,13 @@ class MintMobile:
         usage_data = None
         last_status = None
         for subscriber_type in candidates:
+            # A live capture of a real Minternet session (#39) sent "roaming"
+            # alongside "data" only for subscriberType=INTERNET; phone/tablet
+            # usage is only confirmed with "data" alone, so that's kept as-is
+            # rather than sent everywhere on an unverified guess.
+            types = ["data", "roaming"] if subscriber_type == "INTERNET" else ["data"]
             usage_body = {
-                "types": ["data"],
+                "types": types,
                 "subscriberType": subscriber_type,
             }
             async with self.session.post(usage_url, json=usage_body, headers=usage_headers) as r:
@@ -228,35 +300,45 @@ class MintMobile:
         if usage_data is None:
             raise Exception(f"Failed to fetch usage: {last_status}")
 
-        # Extract primary line info
-        phone = account_data.get("msisdn") or account_data.get("phone", {}).get("msisdn") or self.username
-        
-        plan_exp = account_data.get("plan", {}).get("exp") or account_data.get("phone", {}).get("plan", {}).get("exp") or 0
-        end_of_cycle = account_data.get("plan", {}).get("endOfCycle") or account_data.get("phone", {}).get("plan", {}).get("endOfCycle") or 0
-        plan_months = account_data.get("plan", {}).get("months") or account_data.get("phone", {}).get("plan", {}).get("months") or 0
-        line_name = account_data.get("firstName") or account_data.get("phone", {}).get("firstName") or "Mint Line"
+        # What the account's own top-level identity actually is. The login
+        # response is the most direct signal (see async_login); if that
+        # wasn't available -- e.g. resuming from a cached token -- fall back
+        # to whichever subscriber type usage just proved works, and only
+        # default to PHONE if neither is known. That default preserves exact
+        # prior behavior for every account that predates this attribute.
+        primary_type = (self.primary_type or self.subscriber_type or "PHONE").upper()
+        primary_line_type = primary_type.lower() if primary_type.lower() in LINE_TYPES else "phone"
 
-        # Calculate remaining days
-        now_sec = int(time.time())
-        days_remaining_month = max(0, int((end_of_cycle - now_sec) / 86400))
-        days_remaining_plan = max(0, int((plan_exp - now_sec) / 86400))
+        # account/{id} and its usage response both carry every linked
+        # product: values at the top level (whichever the primary identity
+        # is), plus the same shape again nested under "phone"/"internet"/
+        # "tablet" for any other product linked to the account (see #39).
+        # The top-level line is built from the top level; every other
+        # linked product becomes its own additional line below.
+        primary_product = account_data
+        if not primary_product.get("msisdn") and not primary_product.get("plan"):
+            # Some account payloads put the primary line's own fields only
+            # under this same product-type key rather than at the account's
+            # top level; fall back to that instead of reporting empty data.
+            primary_product = account_data.get(primary_line_type) or account_data
+        fields = _extract_product_fields(primary_product, fallback_name="Mint Line")
+        usage_fields = _extract_usage_fields(usage_data)
+        self.info[self.id] = {**fields, **usage_fields, "line_type": primary_line_type}
 
-        # Data calculations (MB to GB)
-        remaining_mb = usage_data.get("remainingHighSpeedData", 0)
-        used_mb = usage_data.get("usageHighSpeedData", 0)
-        
-        remaining_gb = round(remaining_mb / 1024, 2)
-        used_gb = round(used_mb / 1024, 2)
-
-        self.info[self.id] = {
-            "phone_number": phone,
-            "line_name": line_name,
-            "endOfCycle": days_remaining_month,
-            "months": plan_months,
-            "exp": days_remaining_plan,
-            "remaining4G": remaining_gb,
-            "used4G": used_gb,
-        }
+        for line_type in LINE_TYPES:
+            if line_type == primary_line_type:
+                continue
+            product = account_data.get(line_type)
+            if not product:
+                continue
+            product_usage = usage_data.get(line_type) or {}
+            fields = _extract_product_fields(product, fallback_name=f"Mint {line_type.title()}")
+            usage_fields = _extract_usage_fields(product_usage)
+            self.info[f"{self.id}:{line_type}"] = {
+                **fields,
+                **usage_fields,
+                "line_type": line_type,
+            }
 
         # Multi-line accounts lookup
         try:
@@ -287,6 +369,7 @@ class MintMobile:
                                     m_plan_exp = member.get("nextPlan", {}).get("renewalDate", 0)
                                     m_plan_months = member.get("currentPlan", {}).get("duration", 0)
 
+                                    now_sec = int(time.time())
                                     m_days_remaining_month = max(0, int((m_end_of_cycle - now_sec) / 86400))
                                     m_days_remaining_plan = max(0, int((m_plan_exp - now_sec) / 86400))
 
@@ -298,6 +381,7 @@ class MintMobile:
                                         "exp": m_days_remaining_plan,
                                         "remaining4G": m_remaining_gb,
                                         "used4G": m_used_gb,
+                                        "line_type": "phone",
                                     }
                         except Exception as member_err:
                             _LOGGER.warning("Error fetching multi-line member details for %s: %s", member_id, member_err)

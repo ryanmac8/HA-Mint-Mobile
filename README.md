@@ -5,6 +5,8 @@ This integration creates sensors for each line and displays the remaining and us
 
 Data-only lines (tablet and mobile internet plans) are supported alongside phone lines; the correct subscriber type is detected automatically on the first refresh.
 
+If your account also has a linked **Minternet** (home internet) product, it gets its own sensor pair automatically, whether you log in with your Mint Mobile phone number or your Minternet username -- either credential surfaces every product linked to the account. Each line's `line_type` attribute reads `phone`, `internet`, or `tablet` so you can tell them apart.
+
 > **WARNING: Running Multiple Clients (Token Invalidation)**
 >
 > Mint Mobile's API rotates refresh tokens and only allows one active session per account. Running another automated client (like the TypeScript MQTT bridge) or logging into the official mobile app will invalidate the integration's token.
@@ -19,21 +21,29 @@ Data-only lines (tablet and mobile internet plans) are supported alongside phone
 - Days remaining for plan (The number of days left that you have purchased)
 - Phone number
 - Line name
+- Line type (`phone`, `internet`, or `tablet`)
 - Last updated
+
+### Setup
+
+Adding the integration walks through a few short screens:
+
+1. **Account Type** -- choose Mint Mobile (phone) or Minternet. This only
+   controls how your credential is sent; if your account has both linked,
+   both still show up as separate sensors regardless of which you pick here.
+2. **Credentials** -- your phone number or Minternet username, and password.
+3. **Additional Sensors** -- each attribute above already appears on the
+   main data-usage sensor. Turn on any of the three checkboxes here only if
+   you also want that attribute as its own separate sensor entity.
+4. **Polling Interval** -- see below.
+
+All of these can be changed later from the integration's **Configure** menu.
 
 ### Polling Interval
 
 During setup you can specify how often the integration checks Mint Mobile for
 new data. The value is in **hours** and defaults to **12**. Values less than 1
 hour are not allowed.
-
-### Attributes As Additional Sensors
-
-If you want to have the following attributes as additional sensors, during the setup process or under the integration options menu check 'Display Attributes As Additional Sensors'.
-
-- Number of months purchased for plan
-- Days remaining in month (The number of days left in the data plan month)
-- Days remaining for plan (The number of days left that you have purchased)
 
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)

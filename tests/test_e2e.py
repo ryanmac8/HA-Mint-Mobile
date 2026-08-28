@@ -16,12 +16,20 @@ from custom_components.mintmobile.api import (
     SUBSCRIBER_TYPES,
     decode_jwt,
 )
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.mintmobile.const import (
     CONF_ATTRIBUTESENSORS,
+    CONF_LOGIN_MODE,
     CONF_PASSWORD,
     CONF_POLLING_INTERVAL,
+    CONF_SENSOR_DAYS_REMAINING_MONTH,
+    CONF_SENSOR_DAYS_REMAINING_PLAN,
+    CONF_SENSOR_PLAN_TERM,
     CONF_USERNAME,
+    DEFAULT_LOGIN_MODE,
     DOMAIN,
+    LOGIN_MODE_INTERNET,
+    LOGIN_MODE_PHONE,
 )
 
 from .conftest import ACCOUNT_ID, GATEWAY, MEMBER_ID, PASSWORD, PHONE, make_jwt
@@ -36,9 +44,16 @@ MEMBER_USED = "sensor.kiddo_mobile_data_used"
 
 
 async def run_config_flow(
-    hass: HomeAssistant, *, attribute_sensors: bool = True, polling_interval: int = 12
+    hass: HomeAssistant,
+    *,
+    attribute_sensors: bool = True,
+    polling_interval: int = 12,
+    login_mode: str = DEFAULT_LOGIN_MODE,
+    username: str = PHONE,
 ):
-    """Walk the two-step user config flow and return the final flow result."""
+    """Walk the four-step config flow: login mode -> credentials ->
+    attribute sensors -> polling.
+    """
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
     )
@@ -46,11 +61,24 @@ async def run_config_flow(
     assert result["step_id"] == "user"
 
     result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_LOGIN_MODE: login_mode}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "credentials"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {CONF_USERNAME: username, CONF_PASSWORD: PASSWORD},
+    )
+    if result["type"] is not FlowResultType.FORM or result["step_id"] != "attribute_sensors":
+        return result
+
+    result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         {
-            CONF_USERNAME: PHONE,
-            CONF_PASSWORD: PASSWORD,
-            CONF_ATTRIBUTESENSORS: attribute_sensors,
+            CONF_SENSOR_PLAN_TERM: attribute_sensors,
+            CONF_SENSOR_DAYS_REMAINING_MONTH: attribute_sensors,
+            CONF_SENSOR_DAYS_REMAINING_PLAN: attribute_sensors,
         },
     )
     if result["type"] is not FlowResultType.FORM or result["step_id"] != "polling":
@@ -131,7 +159,7 @@ async def test_invalid_credentials_reprompts(hass: HomeAssistant, mint_api) -> N
 
     result = await run_config_flow(hass)
     assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "user"
+    assert result["step_id"] == "credentials"
     assert result["errors"] == {"base": "invalid_credentials"}
     assert not hass.config_entries.async_entries(DOMAIN)
 
@@ -325,7 +353,7 @@ async def test_login_response_missing_token_reprompts(
 
     result = await run_config_flow(hass)
     assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "user"
+    assert result["step_id"] == "credentials"
     assert result["errors"] == {"base": "invalid_credentials"}
     assert not hass.config_entries.async_entries(DOMAIN)
 
@@ -434,7 +462,10 @@ async def test_options_flow_updates_credentials_and_reloads(
         {
             CONF_USERNAME: PHONE,
             CONF_PASSWORD: "new-password",
-            CONF_ATTRIBUTESENSORS: False,
+            CONF_LOGIN_MODE: LOGIN_MODE_PHONE,
+            CONF_SENSOR_PLAN_TERM: False,
+            CONF_SENSOR_DAYS_REMAINING_MONTH: False,
+            CONF_SENSOR_DAYS_REMAINING_PLAN: False,
             CONF_POLLING_INTERVAL: 6,
         },
     )
@@ -443,9 +474,9 @@ async def test_options_flow_updates_credentials_and_reloads(
 
     assert entry.data[CONF_PASSWORD] == "new-password"
     assert entry.data[CONF_POLLING_INTERVAL] == 6
-    assert entry.data[CONF_ATTRIBUTESENSORS] is False
-    # The reload applied the new (attributesensors=False) config: the plan-term
-    # entity is no longer created, so HA leaves its old state as a restored
+    assert entry.data[CONF_SENSOR_PLAN_TERM] is False
+    # The reload applied the new (plan-term sensor off) config: that entity
+    # is no longer created, so HA leaves its old state as a restored
     # placeholder (see test_unload_removes_entities for the same behaviour).
     assert entry.state is ConfigEntryState.LOADED
     assert hass.states.get(PRIMARY_PLAN_TERM).state == STATE_UNAVAILABLE
@@ -473,7 +504,10 @@ async def test_options_flow_invalid_credentials_reprompts(
         {
             CONF_USERNAME: PHONE,
             CONF_PASSWORD: "wrong-password",
-            CONF_ATTRIBUTESENSORS: True,
+            CONF_LOGIN_MODE: LOGIN_MODE_PHONE,
+            CONF_SENSOR_PLAN_TERM: True,
+            CONF_SENSOR_DAYS_REMAINING_MONTH: True,
+            CONF_SENSOR_DAYS_REMAINING_PLAN: True,
             CONF_POLLING_INTERVAL: 12,
         },
     )
@@ -692,3 +726,222 @@ async def test_setup_retries_when_no_subscriber_type_is_accepted(
     entry = hass.config_entries.async_entries(DOMAIN)[0]
     assert entry.state is ConfigEntryState.SETUP_RETRY
     assert mint_api.usage_attempts() == list(SUBSCRIBER_TYPES)
+
+
+async def test_login_mode_defaults_to_phone(hass: HomeAssistant, mint_api) -> None:
+    """The account-type picker must default to Mint Mobile, not Minternet."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    assert result["step_id"] == "user"
+    default = result["data_schema"]({})
+    assert default[CONF_LOGIN_MODE] == LOGIN_MODE_PHONE == DEFAULT_LOGIN_MODE
+
+
+async def test_phone_login_sends_msisdn_field(hass: HomeAssistant, mint_api) -> None:
+    """Choosing Mint Mobile must send the credential as "msisdn"."""
+    mint_api.register_all()
+
+    result = await run_config_flow(hass, login_mode=LOGIN_MODE_PHONE, username=PHONE)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    body = mint_api.login_request_body()
+    assert body["msisdn"] == PHONE
+    assert "username" not in body
+    assert body["subscriberType"] == "PHONE"
+
+
+async def test_internet_login_sends_username_field(hass: HomeAssistant, mint_api) -> None:
+    """Choosing Minternet must send the credential as "username", not "msisdn" --
+    confirmed against a real Minternet login capture (ha-mint-mobile#39).
+    subscriberType still reads "PHONE" in the request even here; that's not a
+    bug, see the comment in api.py.
+    """
+    mint_api.register_all()
+    minternet_username = "jdoe-internet"
+
+    result = await run_config_flow(
+        hass, login_mode=LOGIN_MODE_INTERNET, username=minternet_username
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    body = mint_api.login_request_body()
+    assert body["username"] == minternet_username
+    assert "msisdn" not in body
+    assert body["subscriberType"] == "PHONE"
+
+
+async def test_attribute_sensors_screen_allows_picking_one_at_a_time(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """The three attributes must be independently selectable, not all-or-nothing."""
+    mint_api.register_all()
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_LOGIN_MODE: LOGIN_MODE_PHONE}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_USERNAME: PHONE, CONF_PASSWORD: PASSWORD}
+    )
+    assert result["step_id"] == "attribute_sensors"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_SENSOR_PLAN_TERM: True,
+            CONF_SENSOR_DAYS_REMAINING_MONTH: False,
+            CONF_SENSOR_DAYS_REMAINING_PLAN: False,
+        },
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_POLLING_INTERVAL: 12}
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(PRIMARY_PLAN_TERM) is not None
+    assert hass.states.get(PRIMARY_DAYS_MONTH) is None
+    assert hass.states.get(PRIMARY_DAYS_PLAN) is None
+
+
+async def test_legacy_entry_with_only_blanket_flag_keeps_all_sensors(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """An entry saved before the per-attribute keys existed only has
+    CONF_ATTRIBUTESENSORS=True; upgrading must not silently remove the
+    sensors that flag used to create.
+    """
+    mint_api.register_all()
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_USERNAME: PHONE,
+            CONF_PASSWORD: PASSWORD,
+            CONF_ATTRIBUTESENSORS: True,
+            # No CONF_LOGIN_MODE, no per-attribute keys -- exactly what a
+            # pre-Minternet-support entry looks like.
+        },
+    )
+    entry.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert hass.states.get(PRIMARY_PLAN_TERM) is not None
+    assert hass.states.get(PRIMARY_DAYS_MONTH) is not None
+    assert hass.states.get(PRIMARY_DAYS_PLAN) is not None
+
+
+async def test_linked_internet_line_appears_alongside_phone(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """A phone login on an account with a linked Minternet product must
+    create a second line for it -- regardless of which credential logged in
+    (ha-mint-mobile#39).
+    """
+    mint_api.register_login(primary_type="PHONE")
+    mint_api.register_account(
+        internet={
+            "msisdn": "7778889999",
+            "firstName": "Ryan",
+            "plan": {
+                "exp": mint_api._ts(180),
+                "endOfCycle": mint_api._ts(20),
+                "months": 12,
+            },
+        }
+    )
+    mint_api.register_plans()
+    mint_api.register_usage(internet={"remainingHighSpeedData": 1024000, "usageHighSpeedData": 512000})
+    mint_api.mock.get(f"{GATEWAY}/v1/mint/account/{ACCOUNT_ID}/multi-line", status=404)
+
+    result = await run_config_flow(hass, login_mode=LOGIN_MODE_PHONE)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    internet_remaining = "sensor.ryan_internet_data_usage_remaining"
+    internet_used = "sensor.ryan_internet_data_used"
+    assert hass.states.get(PRIMARY_REMAINING).state == "5.0"
+    assert hass.states.get(PRIMARY_REMAINING).attributes["line_type"] == "phone"
+    assert hass.states.get(internet_remaining).state == "1000.0"
+    assert hass.states.get(internet_used).state == "500.0"
+    assert hass.states.get(internet_remaining).attributes["line_type"] == "internet"
+    assert hass.states.get(internet_remaining).attributes["phone_number"] == "7778889999"
+
+
+async def test_internet_login_labels_the_primary_line_from_the_login_response(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """The primary line's label comes from the login response's
+    subscriberType (ha-mint-mobile#39), not from an assumption that the
+    top-level account data is always a phone line. Logging in with the
+    Minternet credential must produce an "internet"-labeled primary line
+    even though this fixture's top-level data is phone-shaped.
+    """
+    mint_api.register_login(primary_type="INTERNET")
+    mint_api.register_account()  # top-level data is phone-shaped, as always
+    mint_api.register_plans()
+    mint_api.register_usage_only_accepting("PHONE")
+    mint_api.mock.get(f"{GATEWAY}/v1/mint/account/{ACCOUNT_ID}/multi-line", status=404)
+
+    result = await run_config_flow(hass, login_mode=LOGIN_MODE_INTERNET, username="jdoe-internet")
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    internet_remaining = "sensor.ryan_internet_data_usage_remaining"
+    assert hass.states.get(internet_remaining).attributes["line_type"] == "internet"
+    assert hass.states.get(internet_remaining).state == "5.0"
+    # No separate "phone"-labeled line: this fixture's account response has
+    # no nested "phone" key at all, so there's nothing else to surface.
+    assert hass.states.get(PRIMARY_REMAINING) is None
+
+
+async def test_internet_only_account_creates_a_single_correctly_labeled_line(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """A Minternet-only account (no linked phone at all) must produce exactly
+    one line, labeled "internet", not a spuriously-labeled "phone" line.
+    """
+    mint_api.register_login(primary_type="INTERNET")
+    mint_api.register_account()  # no internet=/tablet= kwargs -> nothing linked
+    mint_api.register_plans()
+    mint_api.register_usage_only_accepting("INTERNET")
+    mint_api.mock.get(f"{GATEWAY}/v1/mint/account/{ACCOUNT_ID}/multi-line", status=404)
+
+    result = await run_config_flow(hass, login_mode=LOGIN_MODE_INTERNET, username="jdoe-internet")
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    assert hass.states.get("sensor.ryan_internet_data_usage_remaining").attributes["line_type"] == "internet"
+    # Exactly one line's worth of entities (5, since attribute sensors
+    # default on in run_config_flow) -- proves nothing was double-counted.
+    line_entities = [eid for eid in hass.states.async_entity_ids("sensor") if eid.startswith("sensor.ryan_")]
+    assert len(line_entities) == 5
+
+
+async def test_phone_only_account_is_unaffected_by_envelope_support(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """Regression guard: an account with no "internet"/"tablet" keys at all
+    must behave exactly as before -- one line, labeled "phone".
+    """
+    mint_api.register_all()  # no internet=/tablet= kwargs
+
+    result = await run_config_flow(hass)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    assert hass.states.get(PRIMARY_REMAINING).state == "5.0"
+    assert hass.states.get(PRIMARY_REMAINING).attributes["line_type"] == "phone"
+    assert hass.states.get("sensor.ryan_internet_data_usage_remaining") is None
+
+
+async def test_multi_line_family_members_are_labeled_phone(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """Family members found via /multi-line are always phone lines."""
+    mint_api.register_all()
+
+    result = await run_config_flow(hass)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    assert hass.states.get(MEMBER_REMAINING).attributes["line_type"] == "phone"

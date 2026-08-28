@@ -8,11 +8,41 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     CONF_ATTRIBUTESENSORS,
+    CONF_SENSOR_DAYS_REMAINING_MONTH,
+    CONF_SENSOR_DAYS_REMAINING_PLAN,
+    CONF_SENSOR_PLAN_TERM,
     DEFAULT_NAME,
     DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# "phone" keeps its historical "Mobile" label so every existing installation's
+# entity names -- and therefore entity_ids, which dashboards/automations
+# reference -- are completely unaffected. "internet"/"tablet" are new lines
+# nobody has today, so there's no prior name to preserve for them.
+LINE_TYPE_LABELS = {
+    "phone": "Mobile",
+    "internet": "Internet",
+    "tablet": "Tablet",
+}
+
+
+def _line_label(data: dict | None) -> str:
+    """Return the naming label for a line's data dict (e.g. "Internet")."""
+    line_type = data.get("line_type", "phone") if data else "phone"
+    return LINE_TYPE_LABELS.get(line_type, "Mobile")
+
+
+def _attribute_sensor_enabled(entry, key: str) -> bool:
+    """True if this attribute should also get its own sensor entity.
+
+    Entries created before the per-attribute keys existed only stored the
+    single blanket CONF_ATTRIBUTESENSORS; fall back to that instead of False
+    so upgrading doesn't silently remove sensors someone already has.
+    """
+    legacy_default = bool(entry.data.get(CONF_ATTRIBUTESENSORS, False))
+    return bool(entry.data.get(key, legacy_default))
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -24,9 +54,11 @@ async def async_setup_entry(hass, entry, async_add_entities):
     for line in lines:
         sensors.append(MintMobileSensor(coordinator, line, entry))
         sensors.append(DataUsed(coordinator, line, entry))
-        if entry.data.get(CONF_ATTRIBUTESENSORS):
+        if _attribute_sensor_enabled(entry, CONF_SENSOR_PLAN_TERM):
             sensors.append(CurrentPlanSensor(coordinator, line, entry))
+        if _attribute_sensor_enabled(entry, CONF_SENSOR_DAYS_REMAINING_MONTH):
             sensors.append(DaysRemainingInMonthSensor(coordinator, line, entry))
+        if _attribute_sensor_enabled(entry, CONF_SENSOR_DAYS_REMAINING_PLAN):
             sensors.append(DaysRemainingInPlanSensor(coordinator, line, entry))
 
     async_add_entities(sensors, True)
@@ -53,7 +85,7 @@ class MintMobileSensor(CoordinatorEntity, Entity):
         """Return the name of the sensor."""
         data = self.coordinator.data.get(self.msisdn)
         line_name = data["line_name"] if data else "Mint"
-        return f"{line_name} Mobile Data Usage Remaining"
+        return f"{line_name} {_line_label(data)} Data Usage Remaining"
 
     @property
     def state(self):
@@ -80,6 +112,7 @@ class MintMobileSensor(CoordinatorEntity, Entity):
         last_updated = datetime.datetime.now().strftime("%b-%d-%Y %I:%M %p")
         return {
             "phone_number": data["phone_number"],
+            "line_type": data.get("line_type", "phone"),
             "line_name": data["line_name"],
             "last_updated": last_updated,
             "days_remaining_in_month": data["endOfCycle"],
@@ -109,7 +142,7 @@ class DataUsed(CoordinatorEntity, Entity):
         """Return the name of the sensor."""
         data = self.coordinator.data.get(self.msisdn)
         line_name = data["line_name"] if data else "Mint"
-        return f"{line_name} Mobile Data Used"
+        return f"{line_name} {_line_label(data)} Data Used"
 
     @property
     def state(self):
@@ -136,6 +169,7 @@ class DataUsed(CoordinatorEntity, Entity):
         last_updated = datetime.datetime.now().strftime("%b-%d-%Y %I:%M %p")
         return {
             "phone_number": data["phone_number"],
+            "line_type": data.get("line_type", "phone"),
             "line_name": data["line_name"],
             "last_updated": last_updated,
             "days_remaining_in_month": data["endOfCycle"],
@@ -165,7 +199,7 @@ class CurrentPlanSensor(CoordinatorEntity, Entity):
         """Return the name of the sensor."""
         data = self.coordinator.data.get(self.msisdn)
         line_name = data["line_name"] if data else "Mint"
-        return f"{line_name} Mint Mobile Plan Term"
+        return f"{line_name} Mint {_line_label(data)} Plan Term"
 
     @property
     def state(self):
@@ -192,6 +226,7 @@ class CurrentPlanSensor(CoordinatorEntity, Entity):
         last_updated = datetime.datetime.now().strftime("%b-%d-%Y %I:%M %p")
         return {
             "phone_number": data["phone_number"],
+            "line_type": data.get("line_type", "phone"),
             "line_name": data["line_name"],
             "last_updated": last_updated,
         }
@@ -218,7 +253,7 @@ class DaysRemainingInMonthSensor(CoordinatorEntity, Entity):
         """Return the name of the sensor."""
         data = self.coordinator.data.get(self.msisdn)
         line_name = data["line_name"] if data else "Mint"
-        return f"{line_name} Mint Mobile Days Remaining In Month"
+        return f"{line_name} Mint {_line_label(data)} Days Remaining In Month"
 
     @property
     def state(self):
@@ -245,6 +280,7 @@ class DaysRemainingInMonthSensor(CoordinatorEntity, Entity):
         last_updated = datetime.datetime.now().strftime("%b-%d-%Y %I:%M %p")
         return {
             "phone_number": data["phone_number"],
+            "line_type": data.get("line_type", "phone"),
             "line_name": data["line_name"],
             "last_updated": last_updated,
         }
@@ -271,7 +307,7 @@ class DaysRemainingInPlanSensor(CoordinatorEntity, Entity):
         """Return the name of the sensor."""
         data = self.coordinator.data.get(self.msisdn)
         line_name = data["line_name"] if data else "Mint"
-        return f"{line_name} Mint Mobile Days Remaining In Plan"
+        return f"{line_name} Mint {_line_label(data)} Days Remaining In Plan"
 
     @property
     def state(self):
@@ -298,6 +334,7 @@ class DaysRemainingInPlanSensor(CoordinatorEntity, Entity):
         last_updated = datetime.datetime.now().strftime("%b-%d-%Y %I:%M %p")
         return {
             "phone_number": data["phone_number"],
+            "line_type": data.get("line_type", "phone"),
             "line_name": data["line_name"],
             "last_updated": last_updated,
         }

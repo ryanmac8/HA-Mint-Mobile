@@ -70,7 +70,7 @@ class MintApiFixture:
         else:
             self.mock.get(f"{GATEWAY}/v1/mint/account/{ACCOUNT_ID}/multi-line", status=404)
 
-    def register_login(self, *, status: int = 200) -> None:
+    def register_login(self, *, status: int = 200, primary_type: str = "PHONE") -> None:
         if status != 200:
             self.mock.post(f"{GATEWAY}/v1/mint/login", status=status, text="unauthorized")
             return
@@ -80,8 +80,19 @@ class MintApiFixture:
                 "token": self.token,
                 "refreshToken": "refresh-token-abc",
                 "userId": ACCOUNT_ID,
+                # Confirmed in ha-mint-mobile#39: the response's subscriberType
+                # reflects which account was actually authenticated, even
+                # though the request always sends "PHONE" regardless of mode.
+                "subscriberType": primary_type,
             },
         )
+
+    def login_request_body(self) -> dict:
+        """Return the JSON body of the most recent /mint/login call."""
+        for _method, url, data, _headers in reversed(self.mock.mock_calls):
+            if str(url).endswith("/mint/login"):
+                return data or {}
+        return {}
 
     def register_account(
         self,
@@ -90,6 +101,8 @@ class MintApiFixture:
         nested: bool = False,
         days_in_cycle: int | None = None,
         days_in_plan: int | None = None,
+        internet: dict | None = None,
+        tablet: dict | None = None,
     ) -> None:
         if status != 200:
             self.mock.get(
@@ -109,6 +122,13 @@ class MintApiFixture:
             body = {"phone": {"msisdn": PHONE, "firstName": "Ryan", "plan": plan}}
         else:
             body = {"msisdn": PHONE, "firstName": "Ryan", "plan": plan}
+        # Linked products (ha-mint-mobile#39): the same account response
+        # carries "internet"/"tablet" sub-objects, shaped identically to the
+        # top level, for any other product linked to this account.
+        if internet is not None:
+            body["internet"] = internet
+        if tablet is not None:
+            body["tablet"] = tablet
         self.mock.get(f"{GATEWAY}/v1/mint/account/{ACCOUNT_ID}", json=body)
 
     def register_plans(self) -> None:
@@ -152,14 +172,18 @@ class MintApiFixture:
             if str(url).endswith(f"/v2/mint/account/{ACCOUNT_ID}/usage")
         ]
 
-    def register_usage(self) -> None:
-        self.mock.post(
-            f"{GATEWAY}/v2/mint/account/{ACCOUNT_ID}/usage",
-            json={
-                "remainingHighSpeedData": 5120,  # MB -> 5.0 GB
-                "usageHighSpeedData": 3072,  # MB -> 3.0 GB
-            },
-        )
+    def register_usage(self, *, internet: dict | None = None, tablet: dict | None = None) -> None:
+        body = {
+            "remainingHighSpeedData": 5120,  # MB -> 5.0 GB
+            "usageHighSpeedData": 3072,  # MB -> 3.0 GB
+        }
+        # Mirrors register_account: linked products get the same shape
+        # nested under their own key (ha-mint-mobile#39).
+        if internet is not None:
+            body["internet"] = internet
+        if tablet is not None:
+            body["tablet"] = tablet
+        self.mock.post(f"{GATEWAY}/v2/mint/account/{ACCOUNT_ID}/usage", json=body)
 
     def register_multi_line(
         self, *, usage_status: int = 200, include_id: bool = True

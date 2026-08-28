@@ -2,13 +2,27 @@
   "config": {
     "step": {
       "user": {
-        "title": "Mint Mobile Credentials",
-        "description": "Please enter the login credentials for Mint Mobile.",
+        "title": "Account Type",
+        "description": "What kind of Mint account are you adding?",
         "data": {
-          "username": "Phone Number",
-          "password": "Password",
-          "attributesensors": "Display Attributes As Additional Sensors"
-
+          "login_mode": "Account type"
+        }
+      },
+      "credentials": {
+        "title": "Mint Mobile Credentials",
+        "description": "Please enter your {credential_kind} and password.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
+      },
+      "attribute_sensors": {
+        "title": "Additional Sensors",
+        "description": "Every attribute below already appears on the main data-usage sensor. Turn one on here only if you also want it as its own separate sensor entity.",
+        "data": {
+          "sensor_plan_term": "Plan term (months) as its own sensor",
+          "sensor_days_remaining_month": "Days remaining in month as its own sensor",
+          "sensor_days_remaining_plan": "Days remaining in plan as its own sensor"
         }
       },
       "polling": {
@@ -26,9 +40,12 @@
     "step": {
       "user": {
         "data": {
-          "username": "Phone Number",
+          "username": "Username",
           "password": "Password",
-          "attributesensors": "Display Attributes As Additional Sensors",
+          "login_mode": "Account type",
+          "sensor_plan_term": "Plan term (months) as its own sensor",
+          "sensor_days_remaining_month": "Days remaining in month as its own sensor",
+          "sensor_days_remaining_plan": "Days remaining in plan as its own sensor",
           "polling_interval": "Polling Interval (hours)"
         }
       }
