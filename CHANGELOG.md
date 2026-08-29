@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.1](https://github.com/ryanmac8/HA-Mint-Mobile/compare/v3.1.0...v3.1.1) (2026-08-29)
+
+
+### Bug Fixes
+
+* detect duplicate config entries by Mint account id ([#48](https://github.com/ryanmac8/HA-Mint-Mobile/issues/48)) ([feae7c2](https://github.com/ryanmac8/HA-Mint-Mobile/commit/feae7c275ef44626fff8b9a7c738bb3987ab8310))
+
 ## [3.1.0](https://github.com/ryanmac8/HA-Mint-Mobile/compare/v3.0.1...v3.1.0) (2026-08-28)
 
 
