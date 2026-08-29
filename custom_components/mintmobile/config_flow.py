@@ -73,12 +73,22 @@ class MintMobileFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self._errors = {}
 
         if user_input is not None:
-            valid = await self._test_credentials(
+            mm = await self._test_credentials(
                 user_input[CONF_USERNAME],
                 user_input[CONF_PASSWORD],
                 self._data.get(CONF_LOGIN_MODE, DEFAULT_LOGIN_MODE),
             )
-            if valid:
+            if mm is not None:
+                # mm.id is the Mint account id from this login's own JWT.
+                # Two entries added with the *same* credential resolve to the
+                # same id and would otherwise silently collide on every
+                # entity's unique_id later, in sensor.py, with no clear
+                # error -- abort here instead, where it's an obvious message.
+                # A linked account's *other* credential (e.g. phone vs its
+                # linked Minternet login) legitimately gets a different id
+                # and is intentionally still allowed as its own entry.
+                await self.async_set_unique_id(mm.id)
+                self._abort_if_unique_id_configured()
                 self._data.update(
                     {
                         CONF_USERNAME: user_input[CONF_USERNAME],
@@ -181,13 +191,15 @@ class MintMobileFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def _test_credentials(self, username, password, login_mode=DEFAULT_LOGIN_MODE):
-        """Return true if credentials is valid."""
+        """Return the logged-in client if credentials are valid, else None."""
         session = async_get_clientsession(self.hass)
         mm = MintMobile(session, username, password, login_mode=login_mode)
         try:
-            return await mm.async_login()
+            if await mm.async_login():
+                return mm
         except Exception:
-            return False
+            pass
+        return None
 
     @staticmethod
     @callback
@@ -277,7 +289,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             for key in ATTRIBUTE_SENSOR_KEYS:
                 new_data[key] = self._data.get(key, False)
             self.hass.config_entries.async_update_entry(
-                self.config_entry, data=new_data
+                self.config_entry, data=new_data, unique_id=mm.id
             )
             return self.async_create_entry(title="", data={})
         else:

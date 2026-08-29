@@ -34,6 +34,9 @@
     },
     "error": {
       "invalid_credentials": "Invalid credentials"
+    },
+    "abort": {
+      "already_configured": "This Mint account is already configured. If it's linked to another product (e.g. a phone line linked to Minternet), you only need one entry -- either credential surfaces every linked line automatically."
     }
   },
   "options": {

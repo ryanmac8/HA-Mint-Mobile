@@ -17,6 +17,9 @@ from custom_components.mintmobile.api import (
     decode_jwt,
 )
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.test_util.aiohttp import (
+    AiohttpClientMockResponse,
+)
 from custom_components.mintmobile.const import (
     CONF_ATTRIBUTESENSORS,
     CONF_LOGIN_MODE,
@@ -945,3 +948,112 @@ async def test_multi_line_family_members_are_labeled_phone(
     assert result["type"] is FlowResultType.CREATE_ENTRY
 
     assert hass.states.get(MEMBER_REMAINING).attributes["line_type"] == "phone"
+
+
+async def test_adding_the_same_credential_twice_aborts(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """A second entry with the identical credential resolves to the same
+    Mint account id (same JWT) and must abort instead of silently creating
+    an entry whose sensors all collide on unique_id (ha-mint-mobile#39).
+    """
+    mint_api.register_all()
+
+    first = await run_config_flow(hass)
+    assert first["type"] is FlowResultType.CREATE_ENTRY
+
+    second = await run_config_flow(hass)
+    assert second["type"] is FlowResultType.ABORT
+    assert second["reason"] == "already_configured"
+    assert len(hass.config_entries.async_entries(DOMAIN)) == 1
+
+
+async def test_linked_credentials_with_different_account_ids_both_allowed(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """Phone and Minternet logins on a linked account resolve to *different*
+    Mint account ids (confirmed in #39's captures) and must both be allowed
+    as separate entries -- this is the supported way to use a linked
+    account, distinct from the same-credential-twice case above.
+    """
+    other_id = "999999"
+
+    # A single mock can't distinguish the two logins by URL, since both hit
+    # the same endpoint -- match on which credential field was sent instead.
+    async def _login_by_credential(method, url, data):
+        credential = (data or {}).get("msisdn") or (data or {}).get("username")
+        if credential == "jdoe-internet":
+            return AiohttpClientMockResponse(
+                method,
+                url,
+                status=200,
+                json={
+                    "token": make_jwt(other_id, int(time.time()) + 3600),
+                    "refreshToken": "refresh-token-xyz",
+                    "userId": other_id,
+                    "subscriberType": "INTERNET",
+                },
+            )
+        return AiohttpClientMockResponse(
+            method,
+            url,
+            status=200,
+            json={
+                "token": mint_api.token,
+                "refreshToken": "refresh-token-abc",
+                "userId": ACCOUNT_ID,
+                "subscriberType": "PHONE",
+            },
+        )
+
+    mint_api.mock.post(f"{GATEWAY}/v1/mint/login", side_effect=_login_by_credential)
+    mint_api.register_account()
+    mint_api.register_plans()
+    mint_api.register_usage()
+    mint_api.register_multi_line()
+    # The second account's own endpoints, so its entry loads successfully
+    # too rather than just completing the flow.
+    mint_api.mock.get(
+        f"{GATEWAY}/v1/mint/account/{other_id}",
+        json={"msisdn": "jdoe-internet", "firstName": "Jane", "plan": {"exp": 0, "endOfCycle": 0, "months": 12}},
+    )
+    mint_api.mock.get(f"{GATEWAY}/v1/mint/account/{other_id}/plans", json={"plans": []})
+    mint_api.mock.post(
+        f"{GATEWAY}/v2/mint/account/{other_id}/usage",
+        json={"remainingHighSpeedData": 2048, "usageHighSpeedData": 1024},
+    )
+    mint_api.mock.get(f"{GATEWAY}/v1/mint/account/{other_id}/multi-line", status=404)
+
+    first = await run_config_flow(hass, login_mode=LOGIN_MODE_PHONE)
+    assert first["type"] is FlowResultType.CREATE_ENTRY
+
+    second = await run_config_flow(
+        hass, login_mode=LOGIN_MODE_INTERNET, username="jdoe-internet"
+    )
+    assert second["type"] is FlowResultType.CREATE_ENTRY
+
+    entries = hass.config_entries.async_entries(DOMAIN)
+    assert len(entries) == 2
+    assert all(e.state is ConfigEntryState.LOADED for e in entries)
+
+
+async def test_legacy_entry_without_unique_id_is_backfilled_on_setup(
+    hass: HomeAssistant, mint_api
+) -> None:
+    """Entries created before duplicate-entry detection existed have no
+    unique_id. A successful setup must backfill one so a later attempt to
+    re-add the same credential is actually caught, not silently allowed.
+    """
+    mint_api.register_all()
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_USERNAME: PHONE, CONF_PASSWORD: PASSWORD},
+        unique_id=None,
+    )
+    entry.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.unique_id == ACCOUNT_ID

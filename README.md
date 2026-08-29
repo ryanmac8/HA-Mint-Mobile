@@ -7,6 +7,8 @@ Data-only lines (tablet and mobile internet plans) are supported alongside phone
 
 If your account also has a linked **Minternet** (home internet) product, it gets its own sensor pair automatically, whether you log in with your Mint Mobile phone number or your Minternet username -- either credential surfaces every product linked to the account. Each line's `line_type` attribute reads `phone`, `internet`, or `tablet` so you can tell them apart.
 
+**A linked account only needs one integration entry.** Add it with whichever credential you like -- phone number or Minternet username -- and both products show up under that single entry. Adding a second entry with the *other* credential for the same linked account isn't necessary and isn't supported: Mint issues a different internal account id per credential, so the integration can't recognize that the two logins are the same person, and you'd end up with the same real-world line duplicated across two entries. Adding the exact same credential a second time is caught and blocked with an "already configured" error; adding the *other* linked credential as a second entry currently is not, so please avoid doing that for now.
+
 > **WARNING: Running Multiple Clients (Token Invalidation)**
 >
 > Mint Mobile's API rotates refresh tokens and only allows one active session per account. Running another automated client (like the TypeScript MQTT bridge) or logging into the official mobile app will invalidate the integration's token.
@@ -37,7 +39,7 @@ Adding the integration walks through a few short screens:
    you also want that attribute as its own separate sensor entity.
 4. **Polling Interval** -- see below.
 
-All of these can be changed later from the integration's **Configure** menu.
+All of these can be changed later from the integration's **Configure** menu. Adding the same credential a second time (e.g. the same phone number twice) is rejected with an "already configured" error rather than silently creating broken duplicate sensors.
 
 ### Polling Interval
 
