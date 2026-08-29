@@ -120,6 +120,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     except Exception as err:
         raise ConfigEntryNotReady(f"Failed to perform initial fetch: {err}") from err
 
+    # Entries created before duplicate-entry detection existed have no
+    # unique_id, so a later attempt to re-add the same credential wouldn't
+    # be caught by the config flow's abort check. Backfill it now that a
+    # successful login has populated client.id.
+    if entry.unique_id is None and client.id:
+        hass.config_entries.async_update_entry(entry, unique_id=client.id)
+
     # Store configuration state to detect user-initiated changes vs token updates
     coordinator.config_version = {
         CONF_USERNAME: username,
