@@ -7,6 +7,7 @@
   ],
   "requirements": [],
   "config_flow": true,
+  "integration_type": "hub",
   "issue_tracker": "https://github.com/ryanmac8/HA-Mint-Mobile/issues",
   "version": "3.1.1",
   "iot_class": "cloud_polling"
